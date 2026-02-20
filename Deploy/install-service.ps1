@@ -36,7 +36,7 @@ nssm set $serviceName AppStdout "C:\Deploy\service-stdout.log"
 nssm set $serviceName AppStderr "C:\Deploy\service-stderr.log"
 
 # Устанавливаем переменные окружения
-nssm set $serviceName AppEnvironmentExtra "ASPNETCORE_ENVIRONMENT=Production" "ASPNETCORE_URLS=http://localhost:5000"
+nssm set $serviceName AppEnvironmentExtra "ASPNETCORE_ENVIRONMENT=Production" "ASPNETCORE_URLS=http://*:80"
 
 Write-Host "Служба установлена!" -ForegroundColor Green
 Write-Host "Для запуска выполните: nssm start $serviceName" -ForegroundColor Cyan

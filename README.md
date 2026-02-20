@@ -1,14 +1,15 @@
 # TaskTrackingMCP
 
-Система управления задачами на базе **ASP.NET Core Blazor** с поддержкой Kanban-досок.
+Система управления задачами на базе **ASP.NET Core 10 + Blazor (Interactive Server)** с поддержкой Kanban-досок и хранилищем **SQLite**.
 
 ## Описание
 
-TaskTrackingMCP — это веб-приложение для отслеживания задач, реализованное с использованием:
+TaskTrackingMCP — это веб‑приложение для отслеживания задач, реализованное с использованием:
 
 - **ASP.NET Core 10.0**
 - **Blazor Interactive Server**
-- **In-memory хранилище данных**
+- **SQLite** в качестве встроенной БД (создаётся и инициализируется автоматически)
+- Архитектура с разделением на слои: Application, Domain, Infrastructure, UI
 
 ## Возможности
 
@@ -20,11 +21,14 @@ TaskTrackingMCP — это веб-приложение для отслежива
   - Code Review (На проверке)
   - Done (Готово)
   - Accepted (Принято)
+  - Cancelled (Отменено)
 - Управление пользователями
 - Назначение исполнителей на задачи
+- Комментарии к задачам (добавление/удаление)
 - Переключение светлой/тёмной темы с сохранением в профиле пользователя
 - Интерактивный серверный режим рендеринга
 - Обработка переподключений при потере связи
+- REST API для работы с задачами + Swagger в режиме Development
 
 ## Требования
 
@@ -49,40 +53,35 @@ dotnet run --project TaskTracking.Web
 
 (точные порты могут отличаться)
 
+### База данных
+
+- Используется файл SQLite `tasktracking.db` в каталоге `TaskTracking.Web/`.
+- Схема создаётся автоматически при старте приложения.
+- Начальные данные (см. ниже) добавляются при первом запуске.
+
 ## Структура проекта
 
 ```
 TaskTrackingMCP/
-├── TaskTracking.slnx              # Решение
-└── TaskTracking.Web/              # Веб-проект
+├── TaskTracking.slnx                      # Решение
+└── TaskTracking.Web/                      # Веб‑проект
+    ├── Application/
+    │   ├── Abstractions/                  # Интерфейсы сервисов приложения
+    │   └── Services/                      # Реализации сервисов (Task/Board/Account/CurrentUser)
+    ├── Domain/
+    │   └── Entities/                      # Доменные сущности (Board, TaskItem, User, Comment)
+    ├── Infrastructure/
+    │   ├── Data/                          # Фабрика подключения к SQLite
+    │   └── Repositories/                  # Репозитории поверх SQLite
     ├── Components/
-    │   ├── Layout/                # Компоненты макета
-    │   │   ├── MainLayout.razor   # Основной макет
-    │   │   ├── LoginLayout.razor  # Макет страницы входа
-    │   │   ├── NavMenu.razor      # Навигационное меню
-    │   │   ├── ThemeToggle.razor  # Переключатель темы
-    │   │   └── ReconnectModal.razor # Модальное окно переподключения
-    │   ├── Pages/                 # Страницы приложения
-    │   │   ├── Home.razor         # Главная страница
-    │   │   ├── Login.razor        # Страница входа
-    │   │   ├── Boards.razor       # Управление досками
-    │   │   ├── Users.razor        # Управление пользователями
-    │   │   ├── TestUsers.razor    # Тестовые пользователи
-    │   │   ├── Error.razor        # Страница ошибок
-    │   │   └── NotFound.razor     # Страница 404
-    │   ├── _Imports.razor
-    │   ├── App.razor
-    │   └── Routes.razor
-    ├── Models/
-    │   ├── Board.cs               # Модель доски
-    │   ├── TaskItem.cs            # Модель задачи
-    │   └── User.cs                # Модель пользователя
-    ├── Services/
-    │   ├── TaskService.cs         # Сервис управления задачами
-    │   └── CurrentUserService.cs  # Сервис текущего пользователя
-    ├── wwwroot/                   # Статические файлы
-    ├── appsettings.json           # Конфигурация
-    └── Program.cs                 # Точка входа
+    │   ├── Layout/                        # Макеты и навигация
+    │   ├── Pages/                         # Страницы приложения (Home, Boards, Users, Login и др.)
+    │   └── Shared/                        # Общие компоненты (KanbanColumn, TaskCard и др.)
+    ├── Controllers/                       # REST API (TasksController)
+    ├── Models/                            # DTO и вспомогательные модели
+    ├── wwwroot/                           # Статические файлы
+    ├── appsettings.json                   # Конфигурация
+    └── Program.cs                         # Точка входа
 ```
 
 ## Тестовые данные
@@ -106,64 +105,64 @@ TaskTrackingMCP/
 
 Для входа используйте AuthKey на странице `/login` или добавьте параметр `?key=<AuthKey>` к URL.
 
+## Аутентификация
+
+- Аутентификация происходит с помощью уникального ключа `AuthKey` (GUID).
+- Можно войти через форму `/login` или передав `?key=<AuthKey>` в адресной строке.
+- Текущий пользователь хранится в состоянии приложения и может быть использован в UI и API.
+
 ## Конфигурация
 
-### appsettings.Development.json
+### appsettings.Development.json / appsettings.json
 
-Настройки для среды разработки.
+Базовые настройки среды разработки/продакшна. Для SQLite дополнительная настройка не требуется — файл БД создаётся автоматически.
 
 ## API
 
-Приложение использует сервисную архитектуру с интерфейсами:
+Основные REST‑эндпоинты для работы с задачами:
 
-### ITaskService
+- GET `/api/tasks/by-board/{boardId}` — получить задачи по доске
+- GET `/api/tasks/{id}` — получить задачу с комментариями
+- POST `/api/tasks/{id}/status` — сменить статус задачи
+- POST `/api/tasks/{id}/cancel` — отменить задачу (статус Cancelled)
+- POST `/api/tasks/{id}/comments` — добавить комментарий
+- DELETE `/api/tasks/{taskId}/comments/{commentId}` — удалить комментарий
 
-```csharp
-public interface ITaskService
-{
-    // Boards
-    List<Board> GetBoards();           // Только активные доски
-    List<Board> GetAllBoards();        // Все доски включая архивированные
-    Board? GetBoard(Guid id);
-    void AddBoard(Board board);
-    void UpdateBoard(Board board);
-    void DeleteBoard(Guid id);
+Тело запросов:
 
-    // Tasks
-    List<TaskItem> GetTasks(Guid boardId);
-    List<TaskItem> GetTasks();         // Все задачи
-    void AddTask(TaskItem task);
-    void UpdateTaskStatus(Guid id, KanbanStatus newStatus);
-    void UpdateTask(TaskItem task);
-    void DeleteTask(Guid id);
+```json
+// POST /api/tasks/{id}/status
+{ "authKey": "11111111-1111-1111-1111-111111111111", "newStatus": 1 }
 
-    // Users
-    List<User> GetUsers();
-    User? GetUserByAuthKey(Guid authKey);
-    void AddUser(User user);
-    void UpdateUser(User user);
-    void DeleteUser(Guid id);
-}
+// POST /api/tasks/{id}/cancel
+{ "authKey": "11111111-1111-1111-1111-111111111111" }
+
+// POST /api/tasks/{id}/comments
+{ "authKey": "11111111-1111-1111-1111-111111111111", "text": "Мой комментарий" }
+
+// DELETE /api/tasks/{taskId}/comments/{commentId} + body
+{ "authKey": "11111111-1111-1111-1111-111111111111" }
 ```
 
-### ICurrentUserService
+Swagger доступен в режиме разработки по адресу `/swagger`.
 
-```csharp
-public interface ICurrentUserService
-{
-    User? CurrentUser { get; }
-    event Action? OnCurrentUserChanged;
-    bool Login(Guid authKey);
-    void Logout();
-}
-```
+## Архитектура и слои
+
+- Application: бизнес‑сервисы и интерфейсы (`ITaskService`, `IBoardService`, `IAccountService`, `ICurrentUserService`)
+- Domain: доменные сущности (`Board`, `TaskItem`, `User`, `Comment`)
+- Infrastructure: реализация доступа к данным (SQLite), репозитории
+- UI: компоненты Blazor и API‑контроллеры
 
 ## Безопасность
 
 - Авторизация по уникальному ключу AuthKey (GUID)
-- Включена защита от CSRF-атак (Antiforgery)
-- HSTS для production-среды
+- Включена защита от CSRF‑атак для веб‑части (Antiforgery)
+- HSTS для production‑среды
 - Обработка ошибок через Exception Handler
+
+## Деплой
+
+В каталоге `Deploy/` находятся PowerShell‑скрипты для установки и запуска приложения в среде Windows (сервис/планировщик задач). Используйте их как основу для автоматизации.
 
 ## Лицензия
 

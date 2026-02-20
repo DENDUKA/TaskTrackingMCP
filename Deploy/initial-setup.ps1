@@ -2,8 +2,7 @@
 # Запускать от имени администратора
 
 param(
-    [Parameter(Mandatory=$true)]
-    [string]$GitRepoUrl https://github.com/DENDUKA/TaskTrackingMCP  # URL репозитория
+    [string]$GitRepoUrl = "https://github.com/DENDUKA/TaskTrackingMCP"
 )
 
 $repoPath = "C:\Apps\TaskTrackingMCP"
@@ -36,10 +35,18 @@ if (Test-Path "$repoPath\.git") {
 Write-Host "Собираю проект..." -ForegroundColor Yellow
 dotnet publish TaskTracking.Web/TaskTracking.Web.csproj -c Release -o $publishPath
 
+# Копируем web.config
+Copy-Item -Path "$repoPath\Deploy\web.config" -Destination $publishPath -Force
+Write-Host "web.config скопирован" -ForegroundColor Cyan
+
+# Создаём папку для логов
+New-Item -ItemType Directory -Path "$publishPath\logs" -Force | Out-Null
+
 Write-Host ""
 Write-Host "=== Первоначальная настройка завершена! ===" -ForegroundColor Green
 Write-Host ""
 Write-Host "Следующие шаги:" -ForegroundColor Yellow
-Write-Host "1. Запустите install-service.ps1 для создания Windows службы" -ForegroundColor Cyan
-Write-Host "2. Запустите install-scheduled-task.ps1 для автоматического деплоя" -ForegroundColor Cyan
-Write-Host "3. Запустите службу: nssm start TaskTracking" -ForegroundColor Cyan
+Write-Host "1. Установите ASP.NET Core Hosting Bundle (если ещё не установлен)" -ForegroundColor Cyan
+Write-Host "   https://dotnet.microsoft.com/download/dotnet/10.0" -ForegroundColor Gray
+Write-Host "2. Запустите install-iis-app.ps1 для создания приложения в IIS" -ForegroundColor Cyan
+Write-Host "3. Запустите install-scheduled-task-iis.ps1 для автодеплоя" -ForegroundColor Cyan
