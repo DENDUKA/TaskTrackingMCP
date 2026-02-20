@@ -3,7 +3,7 @@
 
 param(
     [Parameter(Mandatory=$true)]
-    [string]$GitRepoUrl  # URL репозитория, например: https://github.com/username/TaskTrackingMCP.git
+    [string]$GitRepoUrl https://github.com/DENDUKA/TaskTrackingMCP  # URL репозитория
 )
 
 $repoPath = "C:\Apps\TaskTrackingMCP"
