@@ -1,4 +1,5 @@
 using TaskTracking.Web.Components;
+using TaskTracking.Web.Infrastructure.Data;
 using TaskTracking.Web.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -12,11 +13,16 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// Register SQLite connection factory
+var connectionFactory = new SqliteConnectionFactory("Data Source=tasktracking.db");
+connectionFactory.InitializeDatabase();
+builder.Services.AddSingleton(connectionFactory);
+
 // Register repositories
-builder.Services.AddSingleton<IBoardRepository, InMemoryBoardRepository>();
-builder.Services.AddSingleton<ITaskRepository, InMemoryTaskRepository>();
-builder.Services.AddSingleton<IUserRepository, InMemoryUserRepository>();
-builder.Services.AddSingleton<ICommentRepository, InMemoryCommentRepository>();
+builder.Services.AddScoped<IBoardRepository, SqliteBoardRepository>();
+builder.Services.AddScoped<ITaskRepository, SqliteTaskRepository>();
+builder.Services.AddScoped<IUserRepository, SqliteUserRepository>();
+builder.Services.AddScoped<ICommentRepository, SqliteCommentRepository>();
 
 // Register services
 builder.Services.AddScoped<TaskTracking.Web.Services.ITaskService, TaskTracking.Web.Services.TaskService>();

@@ -6,7 +6,9 @@
       "Bash(dir /s /b C:ProgramTaskTrackingMCP)",
       "Bash(findstr:*)",
       "Bash(taskkill:*)",
-      "Bash(dir \"C:\\\\Program\\\\TaskTrackingMCP\\\\TaskTracking.Web\\\\Components\\\\Pages\")"
+      "Bash(dir \"C:\\\\Program\\\\TaskTrackingMCP\\\\TaskTracking.Web\\\\Components\\\\Pages\")",
+      "Bash(tree:*)",
+      "Bash(dir \"C:\\\\Program\\\\TaskTrackingMCP\\\\TaskTracking.Web\" /S /B)"
     ]
   }
 }
