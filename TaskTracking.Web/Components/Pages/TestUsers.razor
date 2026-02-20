@@ -1,0 +1,82 @@
+@page "/test-users"
+@using TaskTracking.Web.Services
+@using TaskTracking.Web.Models
+@inject IAccountService AccountService
+@inject NavigationManager NavigationManager
+
+<PageTitle>Test Users - Auth Keys</PageTitle>
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4>Тестовые пользователи</h4>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">Используйте эти ключи для входа в систему</p>
+                    
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Имя</th>
+                                    <th>Email</th>
+                                    <th>Ключ авторизации</th>
+                                    <th>Действия</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var user in Users)
+                                {
+                                    <tr>
+                                        <td>@user.Name</td>
+                                        <td>@user.Email</td>
+                                        <td>
+                                    <code>@user.AuthKey</code>
+                                </td>
+                                        <td>
+                                    <button class="btn btn-sm btn-primary" @onclick="() => CopyAuthKey(user.AuthKey)">
+                                        <i class="bi bi-clipboard"></i> Копировать
+                                    </button>
+                                </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <a href="/login" class="btn btn-success">
+                            <i class="bi bi-box-arrow-in-right"></i> Перейти к входу
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<User> Users = new();
+
+    protected override void OnInitialized()
+    {
+        Users = AccountService.GetUsers();
+    }
+
+    private async Task CopyAuthKey(Guid authKey)
+    {
+        try
+        {
+            // For Blazor Server, we need to use JS interop for clipboard
+            // For now, we'll just navigate to login with the key pre-filled
+            NavigationManager.NavigateTo($"/login?key={authKey}");
+        }
+        catch
+        {
+            // Fallback - just navigate to login
+            NavigationManager.NavigateTo("/login");
+        }
+    }
+}

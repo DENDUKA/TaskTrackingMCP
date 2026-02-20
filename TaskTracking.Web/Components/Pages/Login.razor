@@ -1,0 +1,137 @@
+@page "/login"
+@rendermode InteractiveServer
+@layout LoginLayout
+@using TaskTracking.Web.Services
+@using TaskTracking.Web.Components.Layout
+@inject ICurrentUserService CurrentUserService
+@inject NavigationManager Navigation
+@implements IDisposable
+
+<div class="row justify-content-center mt-5">
+    <div class="col-md-6 col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0">Вход в систему</h4>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">Введите ваш ключ авторизации (GUID)</p>
+
+                <div class="mb-3">
+                    <label for="authKey" class="form-label">Ключ</label>
+                    <input type="text"
+                           id="authKey"
+                           class="form-control @(loginError ? "is-invalid" : "")"
+                           placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                           @bind="authKeyInput"
+                           @onkeypress="OnKeyPress" />
+                    @if (loginError)
+                    {
+                        <div class="invalid-feedback">Неверный ключ авторизации</div>
+                    }
+                </div>
+
+                <button class="btn btn-primary w-100" @onclick="DoLogin">Войти</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string authKeyInput = "";
+    private bool loginError = false;
+
+    [SupplyParameterFromQuery]
+    public string? Key { get; set; }
+
+    protected override void OnInitialized()
+    {
+        CurrentUserService.OnCurrentUserChanged += OnUserChanged;
+        if (!string.IsNullOrEmpty(Key))
+        {
+            authKeyInput = Key;
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await CurrentUserService.Initialize();
+
+            if (CurrentUserService.CurrentUser != null)
+            {
+                Navigation.NavigateTo("/");
+                return;
+            }
+
+            if (!string.IsNullOrEmpty(Key))
+            {
+                var normalized = NormalizeGuidInput(authKeyInput);
+                if (Guid.TryParse(normalized, out var parsedFromQuery))
+                {
+                    if (await CurrentUserService.Login(parsedFromQuery))
+                    {
+                        Navigation.NavigateTo("/");
+                        return;
+                    }
+                    loginError = true;
+                    StateHasChanged();
+                }
+            }
+        }
+    }
+
+    private void OnUserChanged()
+    {
+        InvokeAsync(() =>
+        {
+            if (CurrentUserService.CurrentUser != null)
+            {
+                Navigation.NavigateTo("/");
+            }
+        });
+    }
+
+    public void Dispose()
+    {
+        CurrentUserService.OnCurrentUserChanged -= OnUserChanged;
+    }
+
+    private async Task OnKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await DoLogin();
+        }
+    }
+
+    private async Task DoLogin()
+    {
+        loginError = false;
+        var normalized = NormalizeGuidInput(authKeyInput);
+        if (Guid.TryParse(normalized, out var authKey))
+        {
+            if (await CurrentUserService.Login(authKey))
+            {
+                Navigation.NavigateTo("/");
+            }
+            else
+            {
+                loginError = true;
+            }
+        }
+        else
+        {
+            loginError = true;
+        }
+    }
+
+    private static string NormalizeGuidInput(string input)
+    {
+        if (string.IsNullOrWhiteSpace(input)) return string.Empty;
+        var s = input.Trim();
+        s = s.Replace('\u2014', '-').Replace('\u2013', '-').Replace('\u2212', '-');
+        s = s.Trim('`', '\u201c', '\u201d', '\u2018', '\u2019', '"', '\'');
+        return s;
+    }
+}

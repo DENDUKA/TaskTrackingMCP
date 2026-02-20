@@ -1,0 +1,45 @@
+@using TaskTracking.Web.Models
+@using TaskTracking.Web.Components.Shared
+
+@if (IsVisible)
+{
+    <div class="alert alert-@AlertClass alert-dismissible fade show d-flex align-items-center glass-effect" role="alert">
+        <i class="bi bi-@IconClass me-2"></i>
+        <div class="flex-grow-1">
+            @Message
+        </div>
+        <button type="button" class="btn-close" @onclick="Dismiss" aria-label="Close"></button>
+    </div>
+}
+
+@code {
+    [Parameter] public string Message { get; set; } = string.Empty;
+    [Parameter] public NotificationType Type { get; set; } = NotificationType.Info;
+    [Parameter] public EventCallback OnDismissed { get; set; }
+
+    private bool IsVisible { get; set; } = true;
+
+    private string AlertClass => Type switch
+    {
+        NotificationType.Success => "success",
+        NotificationType.Error => "danger",
+        NotificationType.Warning => "warning",
+        NotificationType.Info => "info",
+        _ => "info"
+    };
+
+    private string IconClass => Type switch
+    {
+        NotificationType.Success => "check-circle-fill",
+        NotificationType.Error => "exclamation-triangle-fill",
+        NotificationType.Warning => "exclamation-triangle-fill",
+        NotificationType.Info => "info-circle-fill",
+        _ => "info-circle-fill"
+    };
+
+    private void Dismiss()
+    {
+        IsVisible = false;
+        OnDismissed.InvokeAsync();
+    }
+}

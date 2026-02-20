@@ -1,0 +1,271 @@
+@page "/boards"
+@using TaskTracking.Web.Models
+@using TaskTracking.Web.Services
+@using TaskTracking.Web.Components.Shared
+@inject IBoardService BoardService
+@inject NavigationManager NavigationManager
+@rendermode InteractiveServer
+
+<PageTitle>Управление досками</PageTitle>
+
+<div class="container boards-container">
+    <div class="d-flex justify-content-between align-items-center mb-4 boards-header">
+        <h1>Управление досками</h1>
+        <AppButton Text="Новая доска" 
+                   Type="ButtonType.Primary" 
+                   Icon="plus-lg" 
+                   OnClick="OpenCreateModal" />
+    </div>
+
+    <!-- Уведомления -->
+    @if (notificationMessage != null)
+    {
+        <Notification Message="@notificationMessage" 
+                      Type="@notificationType" 
+                      OnDismissed="() => notificationMessage = null" />
+    }
+
+    <div class="row">
+        <!-- Активные доски -->
+        <div class="col-md-6 boards-section">
+            <h4 class="mb-3 text-success"><i class="bi bi-check-circle me-2"></i>Активные доски</h4>
+            <div class="d-flex flex-column gap-3">
+                @foreach (var board in BoardsList.Where(b => b.IsActive))
+                {
+                    <div class="card shadow-sm task-card board-card" role="button" @onclick="() => OpenBoard(board.Id)">
+                        <div class="card-body">
+                            <h5 class="card-title">@board.Name</h5>
+                            <p class="card-text text-muted">@board.Description</p>
+                            <div class="d-flex align-items-center gap-2 flex-nowrap mt-3">
+                                <AppButton Icon="pencil" 
+                                           Type="ButtonType.OutlineSecondary" 
+                                           Size="ButtonSize.Small"
+                                           OnClick="() => OpenEditModal(board)" 
+                                           OnClickStopPropagation="true"
+                                           title="Редактировать" />
+                                <AppButton Icon="trash" 
+                                           Type="ButtonType.OutlineDanger" 
+                                           Size="ButtonSize.Small"
+                                           OnClick="() => OpenDeleteModal(board.Id)" 
+                                           OnClickStopPropagation="true"
+                                           title="Удалить" />
+                            </div>
+                        </div>
+                    </div>
+                }
+                @if (!BoardsList.Any(b => b.IsActive))
+                {
+                    <div class="empty-state">
+                        <p>Нет активных досок</p>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- Неактивные доски -->
+        <div class="col-md-6 boards-section archived-section">
+            <h4 class="mb-3 text-warning"><i class="bi bi-archive me-2"></i>Архивированные доски</h4>
+            <div class="d-flex flex-column gap-3">
+                @foreach (var board in BoardsList.Where(b => !b.IsActive))
+                {
+                    <div class="card shadow-sm task-card board-card archived">
+                        <div class="card-body">
+                            <h5 class="card-title">@board.Name</h5>
+                            <p class="card-text text-muted">@board.Description</p>
+                            <div class="d-flex align-items-center gap-2 flex-nowrap mt-3">
+                                <AppButton Icon="pencil" 
+                                           Type="ButtonType.OutlineSecondary" 
+                                           Size="ButtonSize.Small"
+                                           OnClick="() => OpenEditModal(board)"
+                                           title="Редактировать" />
+                                <AppButton Icon="trash" 
+                                           Type="ButtonType.OutlineDanger" 
+                                           Size="ButtonSize.Small"
+                                           OnClick="() => OpenDeleteModal(board.Id)"
+                                           title="Удалить" />
+                            </div>
+                        </div>
+                    </div>
+                }
+                @if (!BoardsList.Any(b => !b.IsActive))
+                {
+                    <div class="empty-state">
+                        <p>Нет архивированных досок</p>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно создания/редактирования -->
+@if (showModal)
+{
+    <Modal Title="@(isEditing ? "Редактировать доску" : "Создать доску")" 
+           OnClose="CloseModal">
+        <Body>
+            <div class="mb-3">
+                <label for="boardName" class="form-label">Название</label>
+                <input type="text" class="form-control" id="boardName" @bind="currentBoardName" />
+            </div>
+            <div class="mb-3">
+                <label for="boardDescription" class="form-label">Описание</label>
+                <textarea class="form-control" id="boardDescription" @bind="currentBoardDescription" rows="3"></textarea>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="boardIsActive" @bind="currentBoardIsActive">
+                <label class="form-check-label" for="boardIsActive">
+                    Активная доска
+                </label>
+            </div>
+        </Body>
+        <Footer>
+            <AppButton Text="Отмена" Type="ButtonType.Secondary" OnClick="CloseModal" />
+            <AppButton Text="@(isEditing ? "Сохранить" : "Создать")" Type="ButtonType.Primary" OnClick="SaveBoard" />
+        </Footer>
+    </Modal>
+}
+
+<!-- Модальное окно подтверждения удаления -->
+@if (showDeleteModal)
+{
+    <Modal Title="Подтверждение удаления" 
+           OnClose="CloseDeleteModal">
+        <Body>
+            <p>Вы уверены, что хотите удалить эту доску? Все задачи в этой доске также будут удалены.</p>
+        </Body>
+        <Footer>
+            <AppButton Text="Отмена" Type="ButtonType.Secondary" OnClick="CloseDeleteModal" />
+            <AppButton Text="Удалить" Type="ButtonType.Danger" OnClick="ConfirmDeleteBoard" />
+        </Footer>
+    </Modal>
+}
+
+@code {
+    private List<Board> BoardsList = new List<Board>();
+    private bool showModal = false;
+    private bool showDeleteModal = false;
+    private bool isEditing = false;
+    private Guid currentBoardId;
+    private string currentBoardName = "";
+    private string currentBoardDescription = "";
+    private bool currentBoardIsActive = true;
+    private Guid boardToDeleteId;
+    private string? notificationMessage;
+    private NotificationType notificationType;
+
+    protected override void OnInitialized()
+    {
+        RefreshBoards();
+    }
+
+    private void ShowNotification(string message, NotificationType type)
+    {
+        notificationMessage = message;
+        notificationType = type;
+        StateHasChanged();
+    }
+
+    private void RefreshBoards()
+    {
+        BoardsList = BoardService.GetAllBoards();
+    }
+
+    private void OpenBoard(Guid boardId)
+    {
+        NavigationManager.NavigateTo($"/board/{boardId}");
+    }
+
+    private void OpenCreateModal()
+    {
+        isEditing = false;
+        currentBoardId = Guid.Empty;
+        currentBoardName = "";
+        currentBoardDescription = "";
+        currentBoardIsActive = true;
+        showModal = true;
+    }
+
+    private void OpenEditModal(Board board)
+    {
+        isEditing = true;
+        currentBoardId = board.Id;
+        currentBoardName = board.Name;
+        currentBoardDescription = board.Description;
+        currentBoardIsActive = board.IsActive;
+        showModal = true;
+    }
+
+    private void CloseModal()
+    {
+        showModal = false;
+    }
+
+    private void SaveBoard()
+    {
+        if (!string.IsNullOrWhiteSpace(currentBoardName))
+        {
+            try
+            {
+                if (isEditing)
+                {
+                    BoardService.UpdateBoard(new Board
+                    {
+                        Id = currentBoardId,
+                        Name = currentBoardName,
+                        Description = currentBoardDescription,
+                        IsActive = currentBoardIsActive
+                    });
+                    ShowNotification($"Доска '{currentBoardName}' обновлена", NotificationType.Success);
+                }
+                else
+                {
+                    BoardService.AddBoard(new Board
+                    {
+                        Name = currentBoardName,
+                        Description = currentBoardDescription,
+                        IsActive = currentBoardIsActive
+                    });
+                    ShowNotification($"Доска '{currentBoardName}' создана", NotificationType.Success);
+                }
+                RefreshBoards();
+                CloseModal();
+            }
+            catch (Exception ex)
+            {
+                ShowNotification($"Ошибка: {ex.Message}", NotificationType.Error);
+            }
+        }
+    }
+
+    private void OpenDeleteModal(Guid id)
+    {
+        boardToDeleteId = id;
+        showDeleteModal = true;
+    }
+
+    private void CloseDeleteModal()
+    {
+        showDeleteModal = false;
+        boardToDeleteId = Guid.Empty;
+    }
+
+    private void ConfirmDeleteBoard()
+    {
+        if (boardToDeleteId != Guid.Empty)
+        {
+            try
+            {
+                var board = BoardsList.FirstOrDefault(b => b.Id == boardToDeleteId);
+                BoardService.DeleteBoard(boardToDeleteId);
+                RefreshBoards();
+                ShowNotification($"Доска '{board?.Name}' удалена", NotificationType.Success);
+            }
+            catch (Exception ex)
+            {
+                ShowNotification($"Ошибка при удалении доски: {ex.Message}", NotificationType.Error);
+            }
+        }
+        CloseDeleteModal();
+    }
+}

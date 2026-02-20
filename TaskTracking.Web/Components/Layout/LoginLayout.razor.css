@@ -1,0 +1,4 @@
+/* Hide the Blazor error UI on login page */
+#blazor-error-ui {
+    display: none !important;
+}

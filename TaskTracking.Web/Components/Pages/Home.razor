@@ -1,0 +1,566 @@
+@page "/"
+@page "/board/{BoardId:guid}"
+@using TaskTracking.Web.Models
+@using TaskTracking.Web.Services
+@using TaskTracking.Web.Components.Shared
+@inject ITaskService TaskService
+@inject IBoardService BoardService
+@inject IAccountService AccountService
+@inject ICurrentUserService CurrentUserService
+@inject NavigationManager NavigationManager
+@rendermode InteractiveServer
+
+<PageTitle>Kanban Board</PageTitle>
+
+<div class="container-fluid kanban-board">
+    @if (CurrentBoard == null)
+    {
+        <div class="alert alert-warning">
+            Доска не найдена. <a href="/boards">Перейти к списку досок</a>.
+        </div>
+    }
+    else
+    {
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div class="d-flex align-items-center gap-3">
+                <h1 class="text-center m-0">@CurrentBoard.Name</h1>
+                <div class="dropdown">
+                    <AppButton Text="Сменить доску" 
+                               Type="ButtonType.OutlineSecondary" 
+                               Icon="chevron-down" 
+                               AdditionalCssClasses="dropdown-toggle"
+                               id="boardDropdown"
+                               data-bs-toggle="dropdown" />
+                    <ul class="dropdown-menu" aria-labelledby="boardDropdown">
+                        @foreach (var board in AllBoards)
+                        {
+                            <li><a class="dropdown-item @(board.Id == CurrentBoard.Id ? "active" : "")" href="/board/@board.Id">@board.Name</a></li>
+                        }
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="/boards">Управление досками...</a></li>
+                    </ul>
+                </div>
+            </div>
+            
+            <AppButton Text="Создать задачу" 
+                       Type="ButtonType.Primary" 
+                       Icon="plus-lg" 
+                       OnClick="OpenCreateModal" />
+        </div>
+
+        <!-- Уведомления -->
+        @if (notificationMessage != null)
+        {
+            <Notification Message="@notificationMessage" 
+                          Type="@notificationType" 
+                          OnDismissed="() => notificationMessage = null" />
+        }
+
+        <!-- Модальное окно создания/редактирования -->
+        @if (showModal)
+        {
+            <Modal Title="@(isEditing ? "Редактирование задачи" : "Новая задача")" 
+                   OnClose="CloseModal">
+                <Body>
+                    <div class="mb-3">
+                        <label for="taskTitle" class="form-label">Название</label>
+                        <input type="text" class="form-control" id="taskTitle" @bind="currentTaskTitle" placeholder="Введите название задачи..." />
+                    </div>
+                    <div class="mb-3">
+                        <label for="taskDescription" class="form-label">Описание</label>
+                        <textarea class="form-control" id="taskDescription" rows="3" @bind="currentTaskDescription" placeholder="Введите описание..."></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="taskAssignee" class="form-label">Исполнитель</label>
+                        <select class="form-select" id="taskAssignee" @bind="currentTaskAssigneeId">
+                            <option value="">Не выбран</option>
+                            @foreach (var user in Users)
+                            {
+                                <option value="@user.Id">@user.Name</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="taskStatus" class="form-label">Статус</label>
+                        <select class="form-select" id="taskStatus" @bind="currentTaskStatus" disabled="@(!isEditing)">
+                            <option value="@KanbanStatus.Todo">К выполнению</option>
+                            <option value="@KanbanStatus.InProgress">В процессе</option>
+                            <option value="@KanbanStatus.CodeReview">Код ревью</option>
+                            <option value="@KanbanStatus.Done">Готово</option>
+                            <option value="@KanbanStatus.Accepted">Принято</option>
+                            <option value="@KanbanStatus.Cancelled">Отменено</option>
+                        </select>
+                    </div>
+                </Body>
+                <Footer>
+                    <AppButton Text="Отмена" Type="ButtonType.Secondary" OnClick="CloseModal" />
+                    <AppButton Text="Сохранить" Type="ButtonType.Primary" OnClick="SaveTask" />
+                </Footer>
+            </Modal>
+        }
+
+        <!-- Модальное окно подтверждения удаления -->
+        @if (showDeleteModal)
+        {
+            <Modal Title="Подтверждение удаления" OnClose="CloseDeleteModal">
+                <Body>
+                    <p>Вы действительно хотите удалить задачу @(Tasks.FirstOrDefault(t => t.Id == taskToDeleteId)?.Title)?</p>
+                </Body>
+                <Footer>
+                    <AppButton Text="Отмена" Type="ButtonType.Secondary" OnClick="CloseDeleteModal" />
+                    <AppButton Text="Удалить" Type="ButtonType.Danger" OnClick="ConfirmDeleteTask" />
+                </Footer>
+            </Modal>
+        }
+
+        <!-- Модальное окно просмотра задачи -->
+        @if (showViewModal && viewedTask != null)
+        {
+            <Modal Title="@viewedTask.Title" 
+                   DialogClass="modal-lg" 
+                   OnClose="CloseViewModal">
+                <Body>
+                    <p style="white-space: pre-wrap;">@viewedTask.Description</p>
+                    <hr />
+                    <small class="text-muted">Статус: @GetStatusDisplayName(viewedTask.Status)</small><br/>
+                    <small class="text-muted">Создано: @viewedTask.CreatedAt</small>
+
+                    <hr />
+                    <h6>Комментарии</h6>
+
+                    @if (viewedTaskComments.Any())
+                    {
+                        <div class="comments-list mb-3" style="max-height: 300px; overflow-y: auto;">
+                            @foreach (var comment in viewedTaskComments)
+                            {
+                                <div class="card mb-2">
+                                    <div class="card-body py-2 px-3">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div>
+                                                <strong class="small">@GetUserName(comment.AuthorId)</strong>
+                                                <small class="text-muted ms-2">@comment.CreatedAt.ToString("dd.MM.yyyy HH:mm")</small>
+                                            </div>
+                                            <AppButton Icon="x" 
+                                                       Type="ButtonType.OutlineDanger" 
+                                                       Size="ButtonSize.Small"
+                                                       AdditionalCssClasses="py-0 px-1"
+                                                       OnClick="@( () => DeleteCommentHandler(comment.Id) )" 
+                                                       title="Удалить" />
+                                        </div>
+                                        <p class="mb-0 mt-1 small" style="white-space: pre-wrap;">@comment.Text</p>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="text-muted small">Нет комментариев</p>
+                    }
+
+                    <div class="d-flex gap-2 align-items-end">
+                        <textarea class="form-control" rows="2" placeholder="Добавить комментарий... (Ctrl+Enter для отправки)" @bind="newCommentText" @bind:event="oninput" @onkeydown="HandleCommentKeyDown"></textarea>
+                        <AppButton Icon="send" 
+                                   Type="ButtonType.Primary"
+                                   OnClick="AddCommentHandler" 
+                                   Disabled="@string.IsNullOrWhiteSpace(newCommentText)"
+                                   style="height: fit-content;" />
+                    </div>
+                </Body>
+                <Footer>
+                    <AppButton Text="Закрыть" Type="ButtonType.Secondary" OnClick="CloseViewModal" />
+                    <AppButton Text="Редактировать" Type="ButtonType.Primary" OnClick="() => { var t = viewedTask; CloseViewModal(); OpenEditModal(t); }" />
+                </Footer>
+            </Modal>
+        }
+
+        <!-- Доска -->
+        <div class="row flex-nowrap" style="overflow-x: auto; min-height: 600px;">
+            <KanbanColumn Title="К выполнению" 
+                          HeaderClass="bg-secondary" 
+                          BadgeClass="text-secondary"
+                          TaskCount="@Tasks.Count(t => t.Status == KanbanStatus.Todo)"
+                          Tasks="@Tasks.Where(t => t.Status == KanbanStatus.Todo).ToList()"
+                          ShowAssignee="true"
+                          GetAssigneeName="GetUserName"
+                          OnDrop="@( () => HandleDrop(KanbanStatus.Todo) )"
+                          OnDragOver="HandleDragOver"
+                          OnTaskClick="OpenViewModal"
+                          OnTaskEdit="OpenEditModal"
+                          OnTaskDelete="@(task => OpenDeleteModal(task.Id))"
+                          OnTaskDragStart="HandleDragStart" />
+
+            <KanbanColumn Title="В процессе" 
+                          HeaderClass="bg-primary" 
+                          BadgeClass="text-primary"
+                          TaskCount="@Tasks.Count(t => t.Status == KanbanStatus.InProgress)"
+                          Tasks="@Tasks.Where(t => t.Status == KanbanStatus.InProgress).ToList()"
+                          ShowAssignee="true"
+                          GetAssigneeName="GetUserName"
+                          OnDrop="@( () => HandleDrop(KanbanStatus.InProgress) )"
+                          OnDragOver="HandleDragOver"
+                          OnTaskClick="OpenViewModal"
+                          OnTaskEdit="OpenEditModal"
+                          OnTaskDelete="@(task => OpenDeleteModal(task.Id))"
+                          OnTaskDragStart="HandleDragStart" />
+
+            <KanbanColumn Title="Код ревью" 
+                          HeaderClass="bg-info" 
+                          BadgeClass="text-info"
+                          TaskCount="@Tasks.Count(t => t.Status == KanbanStatus.CodeReview)"
+                          Tasks="@Tasks.Where(t => t.Status == KanbanStatus.CodeReview).ToList()"
+                          ShowAssignee="true"
+                          GetAssigneeName="GetUserName"
+                          OnDrop="@( () => HandleDrop(KanbanStatus.CodeReview) )"
+                          OnDragOver="HandleDragOver"
+                          OnTaskClick="OpenViewModal"
+                          OnTaskEdit="OpenEditModal"
+                          OnTaskDelete="@(task => OpenDeleteModal(task.Id))"
+                          OnTaskDragStart="HandleDragStart" />
+
+            <KanbanColumn Title="Готово" 
+                          HeaderClass="bg-success" 
+                          BadgeClass="text-success"
+                          TaskCount="@Tasks.Count(t => t.Status == KanbanStatus.Done)"
+                          Tasks="@Tasks.Where(t => t.Status == KanbanStatus.Done).ToList()"
+                          ShowAssignee="true"
+                          GetAssigneeName="GetUserName"
+                          OnDrop="@( () => HandleDrop(KanbanStatus.Done) )"
+                          OnDragOver="HandleDragOver"
+                          OnTaskClick="OpenViewModal"
+                          OnTaskEdit="OpenEditModal"
+                          OnTaskDelete="@(task => OpenDeleteModal(task.Id))"
+                          OnTaskDragStart="HandleDragStart" />
+
+            <KanbanColumn Title="Принято" 
+                          HeaderClass="bg-success" 
+                          BadgeClass="text-success"
+                          TaskCount="@Tasks.Count(t => t.Status == KanbanStatus.Accepted)"
+                          Tasks="@Tasks.Where(t => t.Status == KanbanStatus.Accepted).ToList()"
+                          ShowAssignee="true"
+                          GetAssigneeName="GetUserName"
+                          OnDrop="@( () => HandleDrop(KanbanStatus.Accepted) )"
+                          OnDragOver="HandleDragOver"
+                          OnTaskClick="OpenViewModal"
+                          OnTaskEdit="OpenEditModal"
+                          OnTaskDelete="@(task => OpenDeleteModal(task.Id))"
+                          OnTaskDragStart="HandleDragStart" />
+
+            <KanbanColumn Title="Отменено" 
+                          HeaderClass="bg-secondary" 
+                          BadgeClass="text-secondary"
+                          TaskCount="@Tasks.Count(t => t.Status == KanbanStatus.Cancelled)"
+                          Tasks="@Tasks.Where(t => t.Status == KanbanStatus.Cancelled).ToList()"
+                          ShowAssignee="true"
+                          GetAssigneeName="GetUserName"
+                          OnDrop="@( () => HandleDrop(KanbanStatus.Cancelled) )"
+                          OnDragOver="HandleDragOver"
+                          OnTaskClick="OpenViewModal"
+                          OnTaskEdit="OpenEditModal"
+                          OnTaskDelete="@(task => OpenDeleteModal(task.Id))"
+                          OnTaskDragStart="HandleDragStart" />
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public Guid BoardId { get; set; }
+
+    private Board? CurrentBoard { get; set; }
+    private List<Board> AllBoards { get; set; } = new();
+    private List<TaskItem> Tasks { get; set; } = new();
+    private List<User> Users { get; set; } = new();
+
+    // Modal state
+    private bool showModal = false;
+    private bool showDeleteModal = false;
+    private bool showViewModal = false;
+    private bool isEditing = false;
+    private TaskItem? currentTask;
+    private TaskItem? viewedTask;
+    private Guid taskToDeleteId;
+
+    // Form fields
+    private string currentTaskTitle = "";
+    private string currentTaskDescription = "";
+    private Guid? currentTaskAssigneeId;
+    private KanbanStatus currentTaskStatus = KanbanStatus.Todo;
+
+    // Comments
+    private List<Comment> viewedTaskComments { get; set; } = new();
+    private string newCommentText = "";
+
+    // Notifications
+    private string? notificationMessage;
+    private NotificationType notificationType;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadBoards();
+        await LoadUsers();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (BoardId != Guid.Empty)
+        {
+            await LoadBoard(BoardId);
+        }
+        else
+        {
+            // Перенаправляем на первую активную доску
+            var activeBoards = BoardService.GetBoards();
+            if (activeBoards.Any())
+            {
+                NavigationManager.NavigateTo($"/board/{activeBoards.First().Id}");
+            }
+            else
+            {
+                NavigationManager.NavigateTo("/boards");
+            }
+        }
+    }
+
+    private async Task LoadBoards()
+    {
+        AllBoards = BoardService.GetAllBoards();
+    }
+
+    private async Task LoadUsers()
+    {
+        Users = AccountService.GetUsers();
+    }
+
+    private async Task LoadBoard(Guid boardId)
+    {
+        CurrentBoard = BoardService.GetBoard(boardId);
+        if (CurrentBoard != null)
+        {
+            await LoadTasks(boardId);
+        }
+    }
+
+    private async Task LoadTasks(Guid boardId)
+    {
+        Tasks = TaskService.GetTasks(boardId);
+    }
+
+    private void ShowNotification(string message, NotificationType type)
+    {
+        notificationMessage = message;
+        notificationType = type;
+        StateHasChanged();
+    }
+
+    private void OpenCreateModal()
+    {
+        isEditing = false;
+        currentTask = null;
+        currentTaskTitle = "";
+        currentTaskDescription = "";
+        currentTaskAssigneeId = null;
+        currentTaskStatus = KanbanStatus.Todo;
+        showModal = true;
+    }
+
+    private void OpenEditModal(TaskItem task)
+    {
+        isEditing = true;
+        currentTask = task;
+        currentTaskTitle = task.Title;
+        currentTaskDescription = task.Description ?? "";
+        currentTaskAssigneeId = task.AssigneeId;
+        currentTaskStatus = task.Status;
+        showModal = true;
+    }
+
+    private void CloseModal()
+    {
+        showModal = false;
+        currentTask = null;
+    }
+
+    private async Task SaveTask()
+    {
+        if (CurrentBoard == null) return;
+
+        try
+        {
+            if (isEditing && currentTask != null)
+            {
+                currentTask.Title = currentTaskTitle;
+                currentTask.Description = currentTaskDescription;
+                currentTask.AssigneeId = currentTaskAssigneeId;
+                currentTask.Status = currentTaskStatus;
+                TaskService.UpdateTask(currentTask);
+                ShowNotification($"Задача '{currentTaskTitle}' обновлена", NotificationType.Success);
+            }
+            else
+            {
+                var newTask = new TaskItem
+                {
+                    Title = currentTaskTitle,
+                    Description = currentTaskDescription,
+                    BoardId = CurrentBoard.Id,
+                    AssigneeId = currentTaskAssigneeId,
+                    Status = currentTaskStatus,
+                    CreatedAt = DateTime.Now
+                };
+                TaskService.AddTask(newTask);
+                ShowNotification($"Задача '{currentTaskTitle}' создана", NotificationType.Success);
+            }
+
+            await LoadTasks(CurrentBoard.Id);
+            CloseModal();
+        }
+        catch (Exception ex)
+        {
+            ShowNotification($"Ошибка при сохранении задачи: {ex.Message}", NotificationType.Error);
+        }
+    }
+
+    private void OpenDeleteModal(Guid taskId)
+    {
+        taskToDeleteId = taskId;
+        showDeleteModal = true;
+    }
+
+    private void CloseDeleteModal()
+    {
+        showDeleteModal = false;
+        taskToDeleteId = Guid.Empty;
+    }
+
+    private async Task ConfirmDeleteTask()
+    {
+        try
+        {
+            TaskService.DeleteTask(taskToDeleteId);
+            ShowNotification("Задача удалена", NotificationType.Success);
+            await LoadTasks(CurrentBoard!.Id);
+            CloseDeleteModal();
+        }
+        catch (Exception ex)
+        {
+            ShowNotification($"Ошибка при удалении задачи: {ex.Message}", NotificationType.Error);
+        }
+    }
+
+    private async Task OpenViewModal(TaskItem task)
+    {
+        viewedTask = task;
+        viewedTaskComments = TaskService.GetComments(task.Id);
+        showViewModal = true;
+    }
+
+    private void CloseViewModal()
+    {
+        showViewModal = false;
+        viewedTask = null;
+        viewedTaskComments.Clear();
+        newCommentText = "";
+    }
+
+    private async Task AddCommentHandler()
+    {
+        if (string.IsNullOrWhiteSpace(newCommentText) || viewedTask == null) return;
+
+        try
+        {
+            var currentUser = CurrentUserService.CurrentUser;
+            if (currentUser == null) return;
+
+            var comment = new Comment
+            {
+                TaskId = viewedTask.Id,
+                AuthorId = currentUser.Id,
+                Text = newCommentText.Trim(),
+                CreatedAt = DateTime.Now
+            };
+
+            TaskService.AddComment(comment);
+            viewedTaskComments = TaskService.GetComments(viewedTask.Id);
+            newCommentText = "";
+            ShowNotification("Комментарий добавлен", NotificationType.Success);
+        }
+        catch (Exception ex)
+        {
+            ShowNotification($"Ошибка при добавлении комментария: {ex.Message}", NotificationType.Error);
+        }
+    }
+
+    private async Task DeleteCommentHandler(Guid commentId)
+    {
+        if (viewedTask == null) return;
+
+        try
+        {
+            TaskService.DeleteComment(commentId);
+            viewedTaskComments = TaskService.GetComments(viewedTask.Id);
+            ShowNotification("Комментарий удален", NotificationType.Success);
+        }
+        catch (Exception ex)
+        {
+            ShowNotification($"Ошибка при удалении комментария: {ex.Message}", NotificationType.Error);
+        }
+    }
+
+    private async Task HandleCommentKeyDown(KeyboardEventArgs e)
+    {
+        if ((e.CtrlKey || e.MetaKey) && e.Key == "Enter")
+        {
+            await AddCommentHandler();
+        }
+    }
+
+    private async Task HandleDrop(KanbanStatus newStatus)
+    {
+        if (draggedTask != null && CurrentBoard != null)
+        {
+            try
+            {
+                TaskService.UpdateTaskStatus(draggedTask.Id, newStatus);
+                await LoadTasks(CurrentBoard.Id);
+                ShowNotification($"Задача перемещена в '{GetStatusDisplayName(newStatus)}'", NotificationType.Success);
+            }
+            catch (Exception ex)
+            {
+                ShowNotification($"Ошибка при перемещении задачи: {ex.Message}", NotificationType.Error);
+            }
+            draggedTask = null;
+        }
+    }
+
+    private void HandleDragOver(DragEventArgs e)
+    {
+        // handled by :preventDefault in child component
+    }
+
+    private TaskItem? draggedTask;
+
+    private void HandleDragStart(TaskItem task)
+    {
+        draggedTask = task;
+    }
+
+    private string GetUserName(Guid? userId)
+    {
+        if (userId == null) return "Не назначен";
+        var user = Users.FirstOrDefault(u => u.Id == userId);
+        return user?.Name ?? "Неизвестный";
+    }
+
+    private string GetStatusDisplayName(KanbanStatus status)
+    {
+        return status switch
+        {
+            KanbanStatus.Todo => "К выполнению",
+            KanbanStatus.InProgress => "В процессе",
+            KanbanStatus.CodeReview => "Код ревью",
+            KanbanStatus.Done => "Готово",
+            KanbanStatus.Accepted => "Принято",
+            KanbanStatus.Cancelled => "Отменено",
+            _ => status.ToString()
+        };
+    }
+}

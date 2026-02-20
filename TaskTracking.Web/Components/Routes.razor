@@ -1,0 +1,23 @@
+<ErrorBoundary>
+    <ChildContent>
+        <Router AppAssembly="typeof(Program).Assembly" NotFoundPage="typeof(Pages.NotFound)">
+            <Found Context="routeData">
+                <RouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)" />
+                <FocusOnNavigate RouteData="routeData" Selector="h1" />
+            </Found>
+        </Router>
+    </ChildContent>
+    <ErrorContent Context="exception">
+        <div class="alert alert-danger m-4">
+            <h4>Произошла ошибка</h4>
+            <p>Произошла непредвиденная ошибка. Пожалуйста, обновите страницу или попробуйте позже.</p>
+            @if (exception != null)
+            {
+                <details>
+                    <summary>Техническая информация</summary>
+                    <pre>@exception.Message</pre>
+                </details>
+            }
+        </div>
+    </ErrorContent>
+</ErrorBoundary>

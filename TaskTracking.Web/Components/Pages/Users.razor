@@ -1,0 +1,184 @@
+@page "/users"
+@using TaskTracking.Web.Models
+@using TaskTracking.Web.Services
+@using TaskTracking.Web.Components.Shared
+@inject IAccountService AccountService
+@inject ICurrentUserService CurrentUserService
+@inject NavigationManager Navigation
+@implements IDisposable
+
+<PageTitle>Пользователи</PageTitle>
+
+<div class="container-fluid">
+    <div class="alert alert-success mb-3 glass-effect">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <strong>Вы вошли как:</strong> @CurrentUserService.CurrentUser?.Name (@CurrentUserService.CurrentUser?.Email)
+                <br />
+                <small class="text-muted">Ваш ключ: <code>@CurrentUserService.CurrentUser?.AuthKey</code></small>
+            </div>
+            <AppButton Text="Выйти" Type="ButtonType.OutlineSecondary" OnClick="Logout" />
+        </div>
+    </div>
+
+    <!-- Уведомления -->
+    @if (notificationMessage != null)
+    {
+        <Notification Message="@notificationMessage" 
+                      Type="@notificationType" 
+                      OnDismissed="() => notificationMessage = null" />
+    }
+
+    <div class="row">
+        <div class="col-md-6">
+            <h4>Список пользователей</h4>
+            @if (users == null)
+            {
+                <p><em>Загрузка...</em></p>
+            }
+            else if (!users.Any())
+            {
+                <p>Нет пользователей.</p>
+            }
+            else
+            {
+                <div class="list-group">
+                    @foreach (var user in users)
+                    {
+                        <div class="list-group-item @(IsCurrentUser(user) ? "list-group-item-success" : "") d-flex justify-content-between align-items-start">
+                            <div>
+                                <strong>@user.Name</strong>
+                                @if (IsCurrentUser(user))
+                                {
+                                    <span class="badge bg-success ms-2">Это вы</span>
+                                }
+                                <br />
+                                <small class="text-muted">@user.Email</small>
+                                <br />
+                                <small class="text-muted">Ключ: <code>@user.AuthKey</code></small>
+                            </div>
+                            <AppButton Text="Удалить" 
+                                       Type="ButtonType.Danger" 
+                                       Size="ButtonSize.Small" 
+                                       OnClick="() => DeleteUser(user.Id)" />
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+
+        <div class="col-md-6">
+            <h4>Добавить пользователя</h4>
+            <EditForm Model="@newUser" OnValidSubmit="HandleValidSubmit">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+
+                <div class="mb-3">
+                    <label for="name" class="form-label">Имя</label>
+                    <InputText id="name" class="form-control" @bind-Value="newUser.Name" />
+                </div>
+
+                <div class="mb-3">
+                    <label for="email" class="form-label">Email</label>
+                    <InputText id="email" class="form-control" @bind-Value="newUser.Email" />
+                </div>
+
+                <AppButton Text="Добавить" Type="ButtonType.Primary" IsSubmit="true" />
+            </EditForm>
+
+            @if (createdUserKey != null)
+            {
+                <div class="alert alert-info mt-3 glass-effect">
+                    <strong>Пользователь создан!</strong><br />
+                    Сохраните ключ для входа: <code>@createdUserKey</code>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<User> users = new();
+    private User newUser = new();
+    private Guid? createdUserKey = null;
+    private string? notificationMessage;
+    private NotificationType notificationType;
+
+    protected override void OnInitialized()
+    {
+        LoadUsers();
+        CurrentUserService.OnCurrentUserChanged += OnCurrentUserChanged;
+    }
+
+    private void ShowNotification(string message, NotificationType type)
+    {
+        notificationMessage = message;
+        notificationType = type;
+        StateHasChanged();
+    }
+
+    private void OnCurrentUserChanged()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void LoadUsers()
+    {
+        users = AccountService.GetUsers().ToList();
+    }
+
+    private void HandleValidSubmit()
+    {
+        try
+        {
+            var user = new User
+            {
+                Name = newUser.Name,
+                Email = newUser.Email
+            };
+            AccountService.AddUser(user);
+            createdUserKey = user.AuthKey;
+            newUser = new User();
+            LoadUsers();
+            ShowNotification($"Пользователь {user.Name} создан успешно", NotificationType.Success);
+        }
+        catch (Exception ex)
+        {
+            ShowNotification($"Ошибка при создании пользователя: {ex.Message}", NotificationType.Error);
+        }
+    }
+
+    private void DeleteUser(Guid userId)
+    {
+        try
+        {
+            var user = users.FirstOrDefault(u => u.Id == userId);
+            if (user != null)
+            {
+                AccountService.DeleteUser(userId);
+                LoadUsers();
+                ShowNotification($"Пользователь {user.Name} удален", NotificationType.Success);
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowNotification($"Ошибка при удалении пользователя: {ex.Message}", NotificationType.Error);
+        }
+    }
+
+    private async Task Logout()
+    {
+        await CurrentUserService.Logout();
+        Navigation.NavigateTo("/login");
+    }
+
+    private bool IsCurrentUser(User user)
+    {
+        return CurrentUserService.CurrentUser?.Id == user.Id;
+    }
+
+    public void Dispose()
+    {
+        CurrentUserService.OnCurrentUserChanged -= OnCurrentUserChanged;
+    }
+}
