@@ -4,7 +4,7 @@
 $repoPath = "C:\Server\TaskTrackingMCP\TaskTrackingMCP"
 $publishPath = "C:\Server\TaskTrackingMCP\TaskTrackingPublish"
 $appPoolName = "TaskTrackingMCP"
-$logFile = "C:\Deploy\deploy.log"
+$logFile = "C:\Server\TaskTrackingMCP\Deploy\deploy.log"
 
 function Write-Log {
     param([string]$Message)
