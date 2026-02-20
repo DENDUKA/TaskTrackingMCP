@@ -1,8 +1,8 @@
 # Скрипт автоматического деплоя для IIS
 # Запускается планировщиком задач каждые N минут
 
-$repoPath = "C:\Apps\TaskTrackingMCP"
-$publishPath = "C:\Apps\TaskTrackingPublish"
+$repoPath = "C:\Server\TaskTrackingMCP\TaskTrackingMCP"
+$publishPath = "C:\Server\TaskTrackingMCP\TaskTrackingPublish"
 $appPoolName = "TaskTrackingMCP"
 $logFile = "C:\Deploy\deploy.log"
 
