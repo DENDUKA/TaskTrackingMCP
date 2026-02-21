@@ -96,7 +96,7 @@ public class McpController(ITaskService taskService, IBoardService boardService,
             "get_task" => Task.FromResult(GetTask(argsElement)),
             "get_status_catalog" => Task.FromResult(GetStatusCatalog()),
             "get_tasks_by_assignee" => Task.FromResult(GetTasksByAssignee(argsElement)),
-            "get_tasks_unassigned" => Task.FromResult(GetTasksUnassigned()),
+            "get_tasks_unassigned" => Task.FromResult(GetTasksUnassigned(argsElement)),
             "change_task_status" => Task.FromResult(ChangeTaskStatus(argsElement)),
             "cancel_task" => Task.FromResult(CancelTask(argsElement)),
             "add_comment" => Task.FromResult(AddComment(argsElement)),
@@ -175,21 +175,23 @@ public class McpController(ITaskService taskService, IBoardService boardService,
     private object GetTasksByAssignee(JsonElement argsElement)
     {
         var assigneeId = GetRequiredGuid(argsElement, "assigneeId");
+        var boardId = GetOptionalGuid(argsElement, "boardId");
         if (assigneeId is null)
         {
             return CreateToolError("assigneeId is required");
         }
 
-        var tasks = _taskService.GetTasks()
+        var tasks = (boardId is null ? _taskService.GetTasks() : _taskService.GetTasks(boardId.Value))
             .Where(t => t.AssigneeId == assigneeId.Value)
             .ToList();
 
         return CreateToolResult("Задачи по исполнителю получены", new { tasks });
     }
 
-    private object GetTasksUnassigned()
+    private object GetTasksUnassigned(JsonElement argsElement)
     {
-        var tasks = _taskService.GetTasks()
+        var boardId = GetOptionalGuid(argsElement, "boardId");
+        var tasks = (boardId is null ? _taskService.GetTasks() : _taskService.GetTasks(boardId.Value))
             .Where(t => t.AssigneeId == null)
             .ToList();
 
@@ -340,6 +342,21 @@ public class McpController(ITaskService taskService, IBoardService boardService,
         return Guid.TryParse(value, out var guid) ? guid : null;
     }
 
+    private static Guid? GetOptionalGuid(JsonElement argsElement, string propertyName)
+    {
+        if (argsElement.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        if (!argsElement.TryGetProperty(propertyName, out var property) || property.ValueKind != JsonValueKind.String)
+        {
+            return null;
+        }
+
+        return Guid.TryParse(property.GetString(), out var guid) ? guid : null;
+    }
+
     private static string? GetRequiredString(JsonElement argsElement, string propertyName)
     {
         if (argsElement.ValueKind != JsonValueKind.Object)
@@ -482,7 +499,10 @@ public class McpController(ITaskService taskService, IBoardService boardService,
             new("get_tasks_by_assignee", "Get tasks by assignee", "Возвращает задачи по исполнителю", ParseSchema("""
             {
               "type": "object",
-              "properties": { "assigneeId": { "type": "string", "format": "uuid" } },
+              "properties": {
+                "assigneeId": { "type": "string", "format": "uuid" },
+                "boardId": { "type": "string", "format": "uuid" }
+              },
               "required": [ "assigneeId" ]
             }
             """), ParseSchema("""
@@ -494,7 +514,9 @@ public class McpController(ITaskService taskService, IBoardService boardService,
             new("get_tasks_unassigned", "Get unassigned tasks", "Возвращает задачи без исполнителя", ParseSchema("""
             {
               "type": "object",
-              "properties": { }
+              "properties": {
+                "boardId": { "type": "string", "format": "uuid" }
+              }
             }
             """), ParseSchema("""
             {
