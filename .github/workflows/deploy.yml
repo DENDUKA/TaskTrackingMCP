@@ -1,0 +1,73 @@
+name: Deploy ASP.NET Core App to Local IIS
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: self-hosted  # Используем self-hosted runner на вашем сервере
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        path: TaskTrackingMCP  # Скачиваем код в папку TaskTrackingMCP
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: '8.0'
+
+    - name: Restore dependencies
+      run: dotnet restore TaskTrackingMCP/TaskTracking.Web/TaskTracking.Web.csproj
+
+    - name: Build
+      run: dotnet build TaskTrackingMCP/TaskTracking.Web/TaskTracking.Web.csproj --configuration Release --no-restore
+
+    - name: Publish to local folder
+      run: |
+        dotnet publish TaskTrackingMCP/TaskTracking.Web/TaskTracking.Web.csproj \
+          --configuration Release \
+          --no-build \
+          -o C:\Server\TaskTrackingMCP\TaskTrackingPublish
+        Copy-Item -Path TaskTrackingMCP/Deploy/web.config -Destination C:\Server\TaskTrackingMCP\TaskTrackingPublish\web.config -Force
+
+    - name: Stop IIS Application Pool
+      run: |
+        Import-Module WebAdministration
+        $appPoolName = "TaskTrackingAppPool"
+        if (Test-Path "IIS:\AppPools\$appPoolName") {
+          Stop-WebAppPool -Name $appPoolName
+          Write-Host "Application pool $appPoolName stopped"
+        }
+      continue-on-error: true
+
+    - name: Deploy to IIS
+      run: |
+        # Копируем файлы в физическую директорию сайта
+        $sourcePath = "C:\Server\TaskTrackingMCP\TaskTrackingPublish"
+        $sitePath = "C:\Server\TaskTrackingMCP\TaskTrackingPublish"
+        
+        # Очищаем целевую папку (опционально)
+        # Remove-Item -Path "$sitePath\*" -Recurse -Force
+        
+        Write-Host "Deploying application to IIS..."
+        Write-Host "Source: $sourcePath"
+        Write-Host "Destination: $sitePath"
+
+    - name: Start IIS Application Pool
+      run: |
+        Import-Module WebAdministration
+        $appPoolName = "TaskTrackingAppPool"
+        if (Test-Path "IIS:\AppPools\$appPoolName") {
+          Start-WebAppPool -Name $appPoolName
+          Write-Host "Application pool $appPoolName started"
+        }
+      continue-on-error: true
+
+    - name: Verify deployment
+      run: |
+        Write-Host "Deployment completed successfully!"
+        Write-Host "Application deployed to: C:\Server\TaskTrackingMCP\TaskTrackingPublish"
