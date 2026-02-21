@@ -20,6 +20,7 @@ public class McpController(ITaskService taskService, IBoardService boardService,
     private readonly IBoardService _boardService = boardService;
     private readonly IAccountService _accountService = accountService;
     private readonly IReadOnlyList<ToolDefinition> _tools = CreateTools();
+    private Guid? _defaultAuthKey;
 
     [HttpPost]
     public async Task<IActionResult> Handle()
@@ -48,6 +49,8 @@ public class McpController(ITaskService taskService, IBoardService boardService,
         {
             return NoContent();
         }
+
+        _defaultAuthKey = TryReadAuthKeyHeader();
 
         object response = method switch
         {
@@ -201,7 +204,7 @@ public class McpController(ITaskService taskService, IBoardService boardService,
 
     private object CreateTask(JsonElement argsElement)
     {
-        var authKey = GetRequiredGuid(argsElement, "authKey");
+        var authKey = GetAuthKey(argsElement);
         var boardId = GetRequiredGuid(argsElement, "boardId");
         var title = GetRequiredString(argsElement, "title");
         var description = GetOptionalString(argsElement, "description");
@@ -254,13 +257,13 @@ public class McpController(ITaskService taskService, IBoardService boardService,
             Comments = []
         };
 
-        return CreateToolResult("Задача создана", new { task = response });
+        return CreateToolResult("Задача создана", new { taskId = response.Id, task = response });
     }
 
     private object ChangeTaskStatus(JsonElement argsElement)
     {
         var taskId = GetRequiredGuid(argsElement, "taskId");
-        var authKey = GetRequiredGuid(argsElement, "authKey");
+        var authKey = GetAuthKey(argsElement);
         var newStatus = GetRequiredInt(argsElement, "newStatus");
         if (taskId is null || authKey is null || newStatus is null)
         {
@@ -291,7 +294,7 @@ public class McpController(ITaskService taskService, IBoardService boardService,
     private object CancelTask(JsonElement argsElement)
     {
         var taskId = GetRequiredGuid(argsElement, "taskId");
-        var authKey = GetRequiredGuid(argsElement, "authKey");
+        var authKey = GetAuthKey(argsElement);
         if (taskId is null || authKey is null)
         {
             return CreateToolError("taskId, authKey are required");
@@ -316,7 +319,7 @@ public class McpController(ITaskService taskService, IBoardService boardService,
     private object AddComment(JsonElement argsElement)
     {
         var taskId = GetRequiredGuid(argsElement, "taskId");
-        var authKey = GetRequiredGuid(argsElement, "authKey");
+        var authKey = GetAuthKey(argsElement);
         var text = GetRequiredString(argsElement, "text");
         if (taskId is null || authKey is null || text is null)
         {
@@ -361,7 +364,7 @@ public class McpController(ITaskService taskService, IBoardService boardService,
     {
         var taskId = GetRequiredGuid(argsElement, "taskId");
         var commentId = GetRequiredGuid(argsElement, "commentId");
-        var authKey = GetRequiredGuid(argsElement, "authKey");
+        var authKey = GetAuthKey(argsElement);
         if (taskId is null || commentId is null || authKey is null)
         {
             return CreateToolError("taskId, commentId, authKey are required");
@@ -414,6 +417,33 @@ public class McpController(ITaskService taskService, IBoardService boardService,
         }
 
         return Guid.TryParse(property.GetString(), out var guid) ? guid : null;
+    }
+
+    private Guid? GetAuthKey(JsonElement argsElement)
+    {
+        return GetOptionalGuid(argsElement, "authKey") ?? _defaultAuthKey;
+    }
+
+    private Guid? TryReadAuthKeyHeader()
+    {
+        if (Request.Headers.TryGetValue("X-Auth-Key", out var headerValue) &&
+            Guid.TryParse(headerValue.ToString(), out var headerKey))
+        {
+            return headerKey;
+        }
+
+        if (!Request.Headers.TryGetValue("Authorization", out var authHeader))
+        {
+            return null;
+        }
+
+        var value = authHeader.ToString();
+        if (value.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+        {
+            value = value["Bearer ".Length..];
+        }
+
+        return Guid.TryParse(value, out var authKey) ? authKey : null;
     }
 
     private static string? GetRequiredString(JsonElement argsElement, string propertyName)
