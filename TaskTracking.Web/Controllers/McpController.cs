@@ -97,6 +97,7 @@ public class McpController(ITaskService taskService, IBoardService boardService,
             "get_status_catalog" => Task.FromResult(GetStatusCatalog()),
             "get_tasks_by_assignee" => Task.FromResult(GetTasksByAssignee(argsElement)),
             "get_tasks_unassigned" => Task.FromResult(GetTasksUnassigned(argsElement)),
+            "create_task" => Task.FromResult(CreateTask(argsElement)),
             "change_task_status" => Task.FromResult(ChangeTaskStatus(argsElement)),
             "cancel_task" => Task.FromResult(CancelTask(argsElement)),
             "add_comment" => Task.FromResult(AddComment(argsElement)),
@@ -196,6 +197,64 @@ public class McpController(ITaskService taskService, IBoardService boardService,
             .ToList();
 
         return CreateToolResult("Задачи без исполнителя получены", new { tasks });
+    }
+
+    private object CreateTask(JsonElement argsElement)
+    {
+        var authKey = GetRequiredGuid(argsElement, "authKey");
+        var boardId = GetRequiredGuid(argsElement, "boardId");
+        var title = GetRequiredString(argsElement, "title");
+        var description = GetOptionalString(argsElement, "description");
+        var assigneeId = GetOptionalGuid(argsElement, "assigneeId");
+        var statusValue = GetOptionalInt(argsElement, "status");
+
+        if (authKey is null || boardId is null || title is null)
+        {
+            return CreateToolError("authKey, boardId, title are required");
+        }
+
+        var user = _accountService.GetUserByAuthKey(authKey.Value);
+        if (user is null)
+        {
+            return CreateToolError("Unauthorized");
+        }
+
+        var board = _boardService.GetBoard(boardId.Value);
+        if (board is null)
+        {
+            return CreateToolError("Доска не найдена");
+        }
+
+        var status = statusValue is null ? KanbanStatus.Todo : (KanbanStatus)statusValue.Value;
+        if (!Enum.IsDefined(typeof(KanbanStatus), status))
+        {
+            return CreateToolError("Недопустимый статус");
+        }
+
+        var task = new TaskItem
+        {
+            Title = title,
+            Description = description ?? string.Empty,
+            Status = status,
+            BoardId = boardId.Value,
+            AssigneeId = assigneeId
+        };
+
+        _taskService.AddTask(task);
+
+        var response = new TaskResponse
+        {
+            Id = task.Id,
+            Title = task.Title,
+            Description = task.Description,
+            Status = task.Status,
+            BoardId = task.BoardId,
+            AssigneeId = task.AssigneeId,
+            CreatedAt = task.CreatedAt,
+            Comments = []
+        };
+
+        return CreateToolResult("Задача создана", new { task = response });
     }
 
     private object ChangeTaskStatus(JsonElement argsElement)
@@ -372,7 +431,47 @@ public class McpController(ITaskService taskService, IBoardService boardService,
         return property.GetString();
     }
 
+    private static string? GetOptionalString(JsonElement argsElement, string propertyName)
+    {
+        if (argsElement.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        if (!argsElement.TryGetProperty(propertyName, out var property) || property.ValueKind != JsonValueKind.String)
+        {
+            return null;
+        }
+
+        return property.GetString();
+    }
+
     private static int? GetRequiredInt(JsonElement argsElement, string propertyName)
+    {
+        if (argsElement.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        if (!argsElement.TryGetProperty(propertyName, out var property))
+        {
+            return null;
+        }
+
+        if (property.ValueKind == JsonValueKind.Number && property.TryGetInt32(out var value))
+        {
+            return value;
+        }
+
+        if (property.ValueKind == JsonValueKind.String && int.TryParse(property.GetString(), out var parsed))
+        {
+            return parsed;
+        }
+
+        return null;
+    }
+
+    private static int? GetOptionalInt(JsonElement argsElement, string propertyName)
     {
         if (argsElement.ValueKind != JsonValueKind.Object)
         {
@@ -522,6 +621,25 @@ public class McpController(ITaskService taskService, IBoardService boardService,
             {
               "type": "object",
               "properties": { "tasks": { "type": "array" } }
+            }
+            """)),
+            new("create_task", "Create task", "Создаёт новую задачу", ParseSchema("""
+            {
+              "type": "object",
+              "properties": {
+                "authKey": { "type": "string", "format": "uuid" },
+                "boardId": { "type": "string", "format": "uuid" },
+                "title": { "type": "string" },
+                "description": { "type": "string" },
+                "assigneeId": { "type": "string", "format": "uuid" },
+                "status": { "type": "integer" }
+              },
+              "required": [ "authKey", "boardId", "title" ]
+            }
+            """), ParseSchema("""
+            {
+              "type": "object",
+              "properties": { "task": { "type": "object" } }
             }
             """)),
             new("change_task_status", "Change task status", "Меняет статус задачи", ParseSchema("""
