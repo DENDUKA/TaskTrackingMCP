@@ -60,7 +60,7 @@
 
             if (CurrentUserService.CurrentUser != null)
             {
-                Navigation.NavigateTo("/");
+                Navigation.NavigateTo("");
                 return;
             }
 
@@ -71,7 +71,7 @@
                 {
                     if (await CurrentUserService.Login(parsedFromQuery))
                     {
-                        Navigation.NavigateTo("/");
+                        Navigation.NavigateTo("");
                         return;
                     }
                     loginError = true;
@@ -87,7 +87,7 @@
         {
             if (CurrentUserService.CurrentUser != null)
             {
-                Navigation.NavigateTo("/");
+                Navigation.NavigateTo("");
             }
         });
     }
@@ -113,7 +113,7 @@
         {
             if (await CurrentUserService.Login(authKey))
             {
-                Navigation.NavigateTo("/");
+                Navigation.NavigateTo("");
             }
             else
             {

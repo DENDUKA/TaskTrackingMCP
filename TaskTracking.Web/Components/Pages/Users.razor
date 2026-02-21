@@ -169,7 +169,7 @@
     private async Task Logout()
     {
         await CurrentUserService.Logout();
-        Navigation.NavigateTo("/login");
+        Navigation.NavigateTo("login");
     }
 
     private bool IsCurrentUser(User user)

@@ -47,7 +47,7 @@
                     </div>
                     
                     <div class="mt-4">
-                        <a href="/login" class="btn btn-success">
+                        <a href="login" class="btn btn-success">
                             <i class="bi bi-box-arrow-in-right"></i> Перейти к входу
                         </a>
                     </div>
@@ -71,12 +71,12 @@
         {
             // For Blazor Server, we need to use JS interop for clipboard
             // For now, we'll just navigate to login with the key pre-filled
-            NavigationManager.NavigateTo($"/login?key={authKey}");
+            NavigationManager.NavigateTo($"login?key={authKey}");
         }
         catch
         {
             // Fallback - just navigate to login
-            NavigationManager.NavigateTo("/login");
+            NavigationManager.NavigateTo("login");
         }
     }
 }

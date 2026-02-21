@@ -16,7 +16,7 @@
     @if (CurrentBoard == null)
     {
         <div class="alert alert-warning">
-            Доска не найдена. <a href="/boards">Перейти к списку досок</a>.
+            Доска не найдена. <a href="boards">Перейти к списку досок</a>.
         </div>
     }
     else
@@ -34,10 +34,10 @@
                     <ul class="dropdown-menu" aria-labelledby="boardDropdown">
                         @foreach (var board in AllBoards)
                         {
-                            <li><a class="dropdown-item @(board.Id == CurrentBoard.Id ? "active" : "")" href="/board/@board.Id">@board.Name</a></li>
+                            <li><a class="dropdown-item @(board.Id == CurrentBoard.Id ? "active" : "")" href="board/@board.Id">@board.Name</a></li>
                         }
                         <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item" href="/boards">Управление досками...</a></li>
+                        <li><a class="dropdown-item" href="boards">Управление досками...</a></li>
                     </ul>
                 </div>
             </div>
@@ -312,11 +312,11 @@
             var activeBoards = BoardService.GetBoards();
             if (activeBoards.Any())
             {
-                NavigationManager.NavigateTo($"/board/{activeBoards.First().Id}");
+                NavigationManager.NavigateTo($"board/{activeBoards.First().Id}");
             }
             else
             {
-                NavigationManager.NavigateTo("/boards");
+                NavigationManager.NavigateTo("boards");
             }
         }
     }
