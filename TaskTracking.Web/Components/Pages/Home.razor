@@ -557,7 +557,7 @@
         if (viewedTask == null) return;
         try
         {
-            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", viewedTask.Id.ToString());
+            await JSRuntime.InvokeVoidAsync("taskTracking.copyText", viewedTask.Id.ToString());
             ShowNotification("ID задачи скопирован в буфер обмена", NotificationType.Success);
         }
         catch (Exception ex)
