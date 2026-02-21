@@ -552,11 +552,13 @@ public class McpController(ITaskService taskService, IBoardService boardService,
 
     private static object CreateToolResult(string message, object structuredContent)
     {
+        var structuredJson = JsonSerializer.Serialize(structuredContent, JsonOptions);
         return new
         {
             content = new[]
             {
-                new { type = "text", text = message }
+                new { type = "text", text = message },
+                new { type = "text", text = structuredJson }
             },
             structuredContent,
             isError = false
