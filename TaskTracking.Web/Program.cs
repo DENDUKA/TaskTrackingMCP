@@ -33,7 +33,10 @@ builder.Services.AddScoped<TaskTracking.Web.Services.ICurrentUserService, TaskTr
 var app = builder.Build();
 
 // Базовый путь для работы в подпапке IIS
-app.UsePathBase("/TaskTrackingMCP");
+if (!app.Environment.IsDevelopment())
+{
+    app.UsePathBase("/TaskTrackingMCP");
+}
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

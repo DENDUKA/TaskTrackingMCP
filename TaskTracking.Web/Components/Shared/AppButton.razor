@@ -4,6 +4,7 @@
 <button type="@HtmlButtonType" 
         class="btn @ButtonClass @SizeClass @AdditionalCssClasses" 
         @onclick="OnClick"
+        @onclick:stopPropagation="OnClickStopPropagation"
         disabled="@Disabled"
         @attributes="AdditionalAttributes">
     
@@ -33,6 +34,7 @@
     [Parameter] public bool IsSubmit { get; set; }
     [Parameter] public string LoadingText { get; set; } = "Загрузка...";
     [Parameter] public EventCallback<MouseEventArgs> OnClick { get; set; }
+    [Parameter] public bool OnClickStopPropagation { get; set; }
     [Parameter] public string AdditionalCssClasses { get; set; } = string.Empty;
     [Parameter(CaptureUnmatchedValues = true)] public Dictionary<string, object>? AdditionalAttributes { get; set; }
 
