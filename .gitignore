@@ -116,3 +116,4 @@ secrets.json
 # dotnet tool
 .config/dotnet-tools.json
 nul
+/temp_buildDebug/net10.0

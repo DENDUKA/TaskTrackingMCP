@@ -1,4 +1,4 @@
-using TaskTracking.Web.Models;
+using TaskTracking.Web.Domain.Entities;
 
 namespace TaskTracking.Web.Models.Dto;
 

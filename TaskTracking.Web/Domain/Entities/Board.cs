@@ -1,4 +1,4 @@
-namespace TaskTracking.Web.Models;
+namespace TaskTracking.Web.Domain.Entities;
 
 public class Board
 {

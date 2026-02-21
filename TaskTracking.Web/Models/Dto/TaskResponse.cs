@@ -1,3 +1,5 @@
+using TaskTracking.Web.Domain.Entities;
+
 namespace TaskTracking.Web.Models.Dto;
 
 public class TaskResponse

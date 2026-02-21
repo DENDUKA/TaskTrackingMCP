@@ -1,7 +1,7 @@
 using System;
 using System.ComponentModel.DataAnnotations;
 
-namespace TaskTracking.Web.Models;
+namespace TaskTracking.Web.Domain.Entities;
 
 public class User
 {

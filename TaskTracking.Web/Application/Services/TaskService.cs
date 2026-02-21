@@ -1,7 +1,8 @@
-using TaskTracking.Web.Models;
-using TaskTracking.Web.Repositories;
+using TaskTracking.Web.Application.Abstractions;
+using TaskTracking.Web.Domain.Entities;
+using TaskTracking.Web.Infrastructure.Repositories;
 
-namespace TaskTracking.Web.Services
+namespace TaskTracking.Web.Application.Services
 {
     public class TaskService(ITaskRepository tasks, ICommentRepository comments) : ITaskService
     {

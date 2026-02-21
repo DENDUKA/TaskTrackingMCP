@@ -1,7 +1,8 @@
 using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage;
-using TaskTracking.Web.Models;
+using TaskTracking.Web.Application.Abstractions;
+using TaskTracking.Web.Domain.Entities;
 
-namespace TaskTracking.Web.Services
+namespace TaskTracking.Web.Application.Services
 {
     public class CurrentUserService(IAccountService accountService, ProtectedLocalStorage localStorage) : ICurrentUserService
     {

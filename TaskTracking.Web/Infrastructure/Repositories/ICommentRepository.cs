@@ -1,6 +1,6 @@
-using TaskTracking.Web.Models;
+using TaskTracking.Web.Domain.Entities;
 
-namespace TaskTracking.Web.Repositories;
+namespace TaskTracking.Web.Infrastructure.Repositories;
 
 public interface ICommentRepository
 {

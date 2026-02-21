@@ -1,7 +1,8 @@
 @page "/"
 @page "/board/{BoardId:guid}"
+@using TaskTracking.Web.Application.Abstractions
+@using TaskTracking.Web.Domain.Entities
 @using TaskTracking.Web.Models
-@using TaskTracking.Web.Services
 @using TaskTracking.Web.Components.Shared
 @inject ITaskService TaskService
 @inject IBoardService BoardService

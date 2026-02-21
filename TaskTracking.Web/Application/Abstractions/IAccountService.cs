@@ -1,6 +1,6 @@
-using TaskTracking.Web.Models;
+using TaskTracking.Web.Domain.Entities;
 
-namespace TaskTracking.Web.Services;
+namespace TaskTracking.Web.Application.Abstractions;
 
 public interface IAccountService
 {

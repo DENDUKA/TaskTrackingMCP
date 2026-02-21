@@ -1,45 +1,35 @@
-using TaskTracking.Web.Models;
-using TaskTracking.Web.Repositories;
+using TaskTracking.Web.Application.Abstractions;
+using TaskTracking.Web.Domain.Entities;
+using TaskTracking.Web.Infrastructure.Repositories;
 
-namespace TaskTracking.Web.Services
+namespace TaskTracking.Web.Application.Services;
+
+public class AccountService(IUserRepository users) : IAccountService
 {
-    public class AccountService : IAccountService
+    private readonly IUserRepository _users = users;
+
+    public List<User> GetUsers()
     {
-        private readonly IUserRepository _users;
+        return _users.GetAll();
+    }
 
-        public AccountService(IUserRepository users)
-        {
-            _users = users;
-            if (!_users.GetAll().Any())
-            {
-                _users.Add(new User { Name = "Иван Иванов", Email = "ivan@example.com", AuthKey = Guid.Parse("11111111-1111-1111-1111-111111111111") });
-                _users.Add(new User { Name = "Петр Петров", Email = "petr@example.com", AuthKey = Guid.Parse("22222222-2222-2222-2222-222222222222") });
-            }
-        }
+    public User? GetUserByAuthKey(Guid authKey)
+    {
+        return _users.GetByAuthKey(authKey);
+    }
 
-        public List<User> GetUsers()
-        {
-            return _users.GetAll();
-        }
+    public void AddUser(User user)
+    {
+        _users.Add(user);
+    }
 
-        public User? GetUserByAuthKey(Guid authKey)
-        {
-            return _users.GetByAuthKey(authKey);
-        }
+    public void UpdateUser(User user)
+    {
+        _users.Update(user);
+    }
 
-        public void AddUser(User user)
-        {
-            _users.Add(user);
-        }
-
-        public void UpdateUser(User user)
-        {
-            _users.Update(user);
-        }
-
-        public void DeleteUser(Guid id)
-        {
-            _users.Delete(id);
-        }
+    public void DeleteUser(Guid id)
+    {
+        _users.Delete(id);
     }
 }

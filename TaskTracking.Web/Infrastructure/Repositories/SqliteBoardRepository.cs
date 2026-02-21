@@ -1,7 +1,7 @@
+using TaskTracking.Web.Domain.Entities;
 using TaskTracking.Web.Infrastructure.Data;
-using TaskTracking.Web.Models;
 
-namespace TaskTracking.Web.Repositories;
+namespace TaskTracking.Web.Infrastructure.Repositories;
 
 public class SqliteBoardRepository(SqliteConnectionFactory connectionFactory) : IBoardRepository
 {
