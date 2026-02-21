@@ -3,20 +3,14 @@ using TaskTracking.Web.Models;
 
 namespace TaskTracking.Web.Services
 {
-    public class CurrentUserService : ICurrentUserService
+    public class CurrentUserService(IAccountService accountService, ProtectedLocalStorage localStorage) : ICurrentUserService
     {
-        private readonly IAccountService _accountService;
-        private readonly ProtectedLocalStorage _localStorage;
+        private readonly IAccountService _accountService = accountService;
+        private readonly ProtectedLocalStorage _localStorage = localStorage;
         private User? _currentUser;
         private bool _initialized;
 
         private const string AuthKeyStorageKey = "authKey";
-
-        public CurrentUserService(IAccountService accountService, ProtectedLocalStorage localStorage)
-        {
-            _accountService = accountService;
-            _localStorage = localStorage;
-        }
 
         public User? CurrentUser => _currentUser;
 

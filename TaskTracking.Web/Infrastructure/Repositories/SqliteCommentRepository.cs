@@ -3,14 +3,9 @@ using TaskTracking.Web.Models;
 
 namespace TaskTracking.Web.Repositories;
 
-public class SqliteCommentRepository : ICommentRepository
+public class SqliteCommentRepository(SqliteConnectionFactory connectionFactory) : ICommentRepository
 {
-    private readonly SqliteConnectionFactory _connectionFactory;
-
-    public SqliteCommentRepository(SqliteConnectionFactory connectionFactory)
-    {
-        _connectionFactory = connectionFactory;
-    }
+    private readonly SqliteConnectionFactory _connectionFactory = connectionFactory;
 
     public List<Comment> GetByTaskId(Guid taskId)
     {

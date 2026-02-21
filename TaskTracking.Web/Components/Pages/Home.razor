@@ -8,6 +8,7 @@
 @inject IAccountService AccountService
 @inject ICurrentUserService CurrentUserService
 @inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
 @rendermode InteractiveServer
 
 <PageTitle>Kanban Board</PageTitle>
@@ -124,6 +125,14 @@
                     <hr />
                     <small class="text-muted">Статус: @GetStatusDisplayName(viewedTask.Status)</small><br/>
                     <small class="text-muted">Создано: @viewedTask.CreatedAt</small>
+                    <div class="d-flex align-items-center gap-2 mt-2">
+                        <small class="text-muted">ID: @viewedTask.Id</small>
+                        <AppButton Icon="clipboard" 
+                                   Text="Копировать ID"
+                                   Type="ButtonType.OutlineSecondary" 
+                                   Size="ButtonSize.Small"
+                                   OnClick="CopyViewedTaskId" />
+                    </div>
 
                     <hr />
                     <h6>Комментарии</h6>
@@ -541,6 +550,20 @@
     private void HandleDragStart(TaskItem task)
     {
         draggedTask = task;
+    }
+
+    private async Task CopyViewedTaskId()
+    {
+        if (viewedTask == null) return;
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", viewedTask.Id.ToString());
+            ShowNotification("ID задачи скопирован в буфер обмена", NotificationType.Success);
+        }
+        catch (Exception ex)
+        {
+            ShowNotification($"Не удалось скопировать ID задачи: {ex.Message}", NotificationType.Error);
+        }
     }
 
     private string GetUserName(Guid? userId)

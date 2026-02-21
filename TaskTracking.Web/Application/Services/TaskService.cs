@@ -3,16 +3,10 @@ using TaskTracking.Web.Repositories;
 
 namespace TaskTracking.Web.Services
 {
-    public class TaskService : ITaskService
+    public class TaskService(ITaskRepository tasks, ICommentRepository comments) : ITaskService
     {
-        private readonly ITaskRepository _tasks;
-        private readonly ICommentRepository _comments;
-
-        public TaskService(ITaskRepository tasks, ICommentRepository comments)
-        {
-            _tasks = tasks;
-            _comments = comments;
-        }
+        private readonly ITaskRepository _tasks = tasks;
+        private readonly ICommentRepository _comments = comments;
 
         public List<TaskItem> GetTasks(Guid boardId)
         {

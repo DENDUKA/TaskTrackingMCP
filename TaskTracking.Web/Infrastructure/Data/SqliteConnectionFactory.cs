@@ -2,14 +2,9 @@ using Microsoft.Data.Sqlite;
 
 namespace TaskTracking.Web.Infrastructure.Data;
 
-public class SqliteConnectionFactory
+public class SqliteConnectionFactory(string connectionString)
 {
-    private readonly string _connectionString;
-
-    public SqliteConnectionFactory(string connectionString)
-    {
-        _connectionString = connectionString;
-    }
+    private readonly string _connectionString = connectionString;
 
     public SqliteConnection CreateConnection()
     {

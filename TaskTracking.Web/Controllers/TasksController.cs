@@ -7,18 +7,11 @@ namespace TaskTracking.Web.Controllers;
 
 [ApiController]
 [Route("api/tasks")]
-public class TasksController : ControllerBase
+public class TasksController(ITaskService taskService, IBoardService boardService, IAccountService accountService) : ControllerBase
 {
-    private readonly ITaskService _taskService;
-    private readonly IBoardService _boardService;
-    private readonly IAccountService _accountService;
-
-    public TasksController(ITaskService taskService, IBoardService boardService, IAccountService accountService)
-    {
-        _taskService = taskService;
-        _boardService = boardService;
-        _accountService = accountService;
-    }
+    private readonly ITaskService _taskService = taskService;
+    private readonly IBoardService _boardService = boardService;
+    private readonly IAccountService _accountService = accountService;
 
     [HttpGet("by-board/{boardId}")]
     public IActionResult GetTasksByBoard(Guid boardId)

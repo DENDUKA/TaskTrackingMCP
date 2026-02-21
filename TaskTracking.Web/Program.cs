@@ -39,15 +39,15 @@ if (!app.Environment.IsDevelopment())
 }
 
 // Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+//if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
-else
-{
-    app.UseExceptionHandler("/Error", createScopeForErrors: true);
-}
+//else
+//{
+//    app.UseExceptionHandler("/Error", createScopeForErrors: true);
+//}
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 
 app.UseAntiforgery();

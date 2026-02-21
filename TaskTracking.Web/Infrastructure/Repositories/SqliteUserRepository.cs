@@ -3,14 +3,9 @@ using TaskTracking.Web.Models;
 
 namespace TaskTracking.Web.Repositories;
 
-public class SqliteUserRepository : IUserRepository
+public class SqliteUserRepository(SqliteConnectionFactory connectionFactory) : IUserRepository
 {
-    private readonly SqliteConnectionFactory _connectionFactory;
-
-    public SqliteUserRepository(SqliteConnectionFactory connectionFactory)
-    {
-        _connectionFactory = connectionFactory;
-    }
+    private readonly SqliteConnectionFactory _connectionFactory = connectionFactory;
 
     public List<User> GetAll()
     {
