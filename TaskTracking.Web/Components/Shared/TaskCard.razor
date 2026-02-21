@@ -16,8 +16,8 @@
                         <i class="bi bi-three-dots-vertical"></i>
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end">
-                        <li><a class="dropdown-item" href="#" @onclick="HandleEdit" @onclick:preventDefault><i class="bi bi-pencil me-2"></i>Редактировать</a></li>
-                        <li><a class="dropdown-item text-danger" href="#" @onclick="HandleDelete" @onclick:preventDefault><i class="bi bi-trash me-2"></i>Удалить</a></li>
+                        <li><a class="dropdown-item" href="#" @onclick="HandleEdit" @onclick:preventDefault @onclick:stopPropagation="true"><i class="bi bi-pencil me-2"></i>Редактировать</a></li>
+                        <li><a class="dropdown-item text-danger" href="#" @onclick="HandleDelete" @onclick:preventDefault @onclick:stopPropagation="true"><i class="bi bi-trash me-2"></i>Удалить</a></li>
                     </ul>
                 </div>
             }
