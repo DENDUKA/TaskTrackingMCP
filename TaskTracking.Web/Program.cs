@@ -13,8 +13,6 @@ builder.Services.AddRazorComponents()
     .AddCircuitOptions(options => options.DetailedErrors = true);
 
 builder.Services.AddControllers();
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost;
@@ -51,15 +49,6 @@ if (!string.IsNullOrWhiteSpace(pathBase))
 }
 
 // Configure the HTTP request pipeline.
-//if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
-//else
-//{
-//    app.UseExceptionHandler("/Error", createScopeForErrors: true);
-//}
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 
 app.UseAntiforgery();
