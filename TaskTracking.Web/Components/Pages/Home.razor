@@ -318,15 +318,22 @@
         }
         else
         {
-            // Перенаправляем на первую активную доску
-            var activeBoards = BoardService.GetBoards();
-            if (activeBoards.Any())
+            var mainBoard = BoardService.GetMainBoard();
+            if (mainBoard != null)
             {
-                NavigationManager.NavigateTo($"board/{activeBoards.First().Id}");
+                NavigationManager.NavigateTo($"board/{mainBoard.Id}");
             }
             else
             {
-                NavigationManager.NavigateTo("boards");
+                var activeBoards = BoardService.GetBoards();
+                if (activeBoards.Any())
+                {
+                    NavigationManager.NavigateTo($"board/{activeBoards.First().Id}");
+                }
+                else
+                {
+                    NavigationManager.NavigateTo("boards");
+                }
             }
         }
     }

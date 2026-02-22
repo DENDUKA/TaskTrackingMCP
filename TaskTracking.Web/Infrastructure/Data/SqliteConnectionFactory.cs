@@ -1,4 +1,5 @@
 using Microsoft.Data.Sqlite;
+using System;
 
 namespace TaskTracking.Web.Infrastructure.Data;
 
@@ -22,7 +23,8 @@ public class SqliteConnectionFactory(string connectionString)
                 Id TEXT PRIMARY KEY,
                 Name TEXT NOT NULL,
                 Description TEXT NOT NULL,
-                IsActive INTEGER NOT NULL DEFAULT 1
+                IsActive INTEGER NOT NULL DEFAULT 1,
+                IsMain INTEGER NOT NULL DEFAULT 0
             );
 
             CREATE TABLE IF NOT EXISTS Tasks (
@@ -55,5 +57,25 @@ public class SqliteConnectionFactory(string connectionString)
             CREATE INDEX IF NOT EXISTS IX_Users_AuthKey ON Users(AuthKey);
         ";
         command.ExecuteNonQuery();
+        EnsureColumnExists(connection, "Boards", "IsMain", "ALTER TABLE Boards ADD COLUMN IsMain INTEGER NOT NULL DEFAULT 0");
+    }
+
+    private static void EnsureColumnExists(SqliteConnection connection, string tableName, string columnName, string alterSql)
+    {
+        using var pragmaCommand = connection.CreateCommand();
+        pragmaCommand.CommandText = $"PRAGMA table_info({tableName});";
+
+        using var reader = pragmaCommand.ExecuteReader();
+        while (reader.Read())
+        {
+            if (string.Equals(reader.GetString(1), columnName, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+        }
+
+        using var alterCommand = connection.CreateCommand();
+        alterCommand.CommandText = alterSql;
+        alterCommand.ExecuteNonQuery();
     }
 }

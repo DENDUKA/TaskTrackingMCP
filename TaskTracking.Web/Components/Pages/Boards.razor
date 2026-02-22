@@ -35,9 +35,22 @@
                 {
                     <div class="card shadow-sm task-card board-card" role="button" @onclick="() => OpenBoard(board.Id)">
                         <div class="card-body">
-                            <h5 class="card-title">@board.Name</h5>
+                            <h5 class="card-title d-flex align-items-center gap-2">
+                                <span>@board.Name</span>
+                                @if (board.IsMain)
+                                {
+                                    <span class="badge text-bg-warning"><i class="bi bi-star-fill me-1"></i>Главная</span>
+                                }
+                            </h5>
                             <p class="card-text text-muted">@board.Description</p>
                             <div class="d-flex align-items-center gap-2 flex-nowrap mt-3">
+                                <AppButton Icon="star" 
+                                           Type="ButtonType.OutlineWarning" 
+                                           Size="ButtonSize.Small"
+                                           Disabled="@(board.IsMain)"
+                                           OnClick="() => MakeMainBoard(board.Id)" 
+                                           OnClickStopPropagation="true"
+                                           title="Сделать главной" />
                                 <AppButton Icon="pencil" 
                                            Type="ButtonType.OutlineSecondary" 
                                            Size="ButtonSize.Small"
@@ -153,6 +166,7 @@
     private string currentBoardName = "";
     private string currentBoardDescription = "";
     private bool currentBoardIsActive = true;
+    private bool currentBoardIsMain = false;
     private Guid boardToDeleteId;
     private string? notificationMessage;
     private NotificationType notificationType;
@@ -186,6 +200,7 @@
         currentBoardName = "";
         currentBoardDescription = "";
         currentBoardIsActive = true;
+        currentBoardIsMain = false;
         showModal = true;
     }
 
@@ -196,6 +211,7 @@
         currentBoardName = board.Name;
         currentBoardDescription = board.Description;
         currentBoardIsActive = board.IsActive;
+        currentBoardIsMain = board.IsMain;
         showModal = true;
     }
 
@@ -217,7 +233,8 @@
                         Id = currentBoardId,
                         Name = currentBoardName,
                         Description = currentBoardDescription,
-                        IsActive = currentBoardIsActive
+                        IsActive = currentBoardIsActive,
+                        IsMain = currentBoardIsMain
                     });
                     ShowNotification($"Доска '{currentBoardName}' обновлена", NotificationType.Success);
                 }
@@ -227,7 +244,8 @@
                     {
                         Name = currentBoardName,
                         Description = currentBoardDescription,
-                        IsActive = currentBoardIsActive
+                        IsActive = currentBoardIsActive,
+                        IsMain = currentBoardIsMain
                     });
                     ShowNotification($"Доска '{currentBoardName}' создана", NotificationType.Success);
                 }
@@ -270,5 +288,20 @@
             }
         }
         CloseDeleteModal();
+    }
+
+    private void MakeMainBoard(Guid boardId)
+    {
+        try
+        {
+            BoardService.SetMainBoard(boardId);
+            RefreshBoards();
+            var board = BoardsList.FirstOrDefault(b => b.Id == boardId);
+            ShowNotification($"Доска '{board?.Name}' назначена главной", NotificationType.Success);
+        }
+        catch (Exception ex)
+        {
+            ShowNotification($"Ошибка при назначении главной доски: {ex.Message}", NotificationType.Error);
+        }
     }
 }

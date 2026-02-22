@@ -98,6 +98,7 @@ public class McpController(ITaskService taskService, IBoardService boardService,
             "get_tasks_by_board" => Task.FromResult(GetTasksByBoard(argsElement)),
             "get_task" => Task.FromResult(GetTask(argsElement)),
             "get_status_catalog" => Task.FromResult(GetStatusCatalog()),
+            "get_main_board_id" => Task.FromResult(GetMainBoardId()),
             "get_tasks_by_assignee" => Task.FromResult(GetTasksByAssignee(argsElement)),
             "get_tasks_unassigned" => Task.FromResult(GetTasksUnassigned(argsElement)),
             "create_task" => Task.FromResult(CreateTask(argsElement)),
@@ -111,10 +112,10 @@ public class McpController(ITaskService taskService, IBoardService boardService,
 
     private object GetTasksByBoard(JsonElement argsElement)
     {
-        var boardId = GetRequiredGuid(argsElement, "boardId");
+        var boardId = ResolveBoardId(argsElement);
         if (boardId is null)
         {
-            return CreateToolError("boardId is required");
+            return CreateToolError("Главная доска не задана");
         }
 
         var board = _boardService.GetBoard(boardId.Value);
@@ -176,16 +177,32 @@ public class McpController(ITaskService taskService, IBoardService boardService,
         return CreateToolResult("Справочник статусов", new { statuses });
     }
 
+    private object GetMainBoardId()
+    {
+        var mainBoard = _boardService.GetMainBoard();
+        if (mainBoard is null)
+        {
+            return CreateToolError("Главная доска не задана");
+        }
+
+        return CreateToolResult("Главная доска", new { boardId = mainBoard.Id });
+    }
+
     private object GetTasksByAssignee(JsonElement argsElement)
     {
         var assigneeId = GetRequiredGuid(argsElement, "assigneeId");
-        var boardId = GetOptionalGuid(argsElement, "boardId");
         if (assigneeId is null)
         {
             return CreateToolError("assigneeId is required");
         }
 
-        var tasks = (boardId is null ? _taskService.GetTasks() : _taskService.GetTasks(boardId.Value))
+        var boardId = ResolveBoardId(argsElement);
+        if (boardId is null)
+        {
+            return CreateToolError("Главная доска не задана");
+        }
+
+        var tasks = _taskService.GetTasks(boardId.Value)
             .Where(t => t.AssigneeId == assigneeId.Value)
             .ToList();
 
@@ -194,8 +211,13 @@ public class McpController(ITaskService taskService, IBoardService boardService,
 
     private object GetTasksUnassigned(JsonElement argsElement)
     {
-        var boardId = GetOptionalGuid(argsElement, "boardId");
-        var tasks = (boardId is null ? _taskService.GetTasks() : _taskService.GetTasks(boardId.Value))
+        var boardId = ResolveBoardId(argsElement);
+        if (boardId is null)
+        {
+            return CreateToolError("Главная доска не задана");
+        }
+
+        var tasks = _taskService.GetTasks(boardId.Value)
             .Where(t => t.AssigneeId == null)
             .ToList();
 
@@ -205,21 +227,26 @@ public class McpController(ITaskService taskService, IBoardService boardService,
     private object CreateTask(JsonElement argsElement)
     {
         var authKey = GetAuthKey(argsElement);
-        var boardId = GetRequiredGuid(argsElement, "boardId");
         var title = GetRequiredString(argsElement, "title");
         var description = GetOptionalString(argsElement, "description");
         var assigneeId = GetOptionalGuid(argsElement, "assigneeId");
         var statusValue = GetOptionalInt(argsElement, "status");
 
-        if (authKey is null || boardId is null || title is null)
+        if (authKey is null || title is null)
         {
-            return CreateToolError("authKey, boardId, title are required");
+            return CreateToolError("authKey, title are required");
         }
 
         var user = _accountService.GetUserByAuthKey(authKey.Value);
         if (user is null)
         {
             return CreateToolError("Unauthorized");
+        }
+
+        var boardId = ResolveBoardId(argsElement);
+        if (boardId is null)
+        {
+            return CreateToolError("Главная доска не задана");
         }
 
         var board = _boardService.GetBoard(boardId.Value);
@@ -391,6 +418,17 @@ public class McpController(ITaskService taskService, IBoardService boardService,
 
         _taskService.DeleteComment(commentId.Value);
         return CreateToolResult("Комментарий удалён", new { taskId, commentId });
+    }
+
+    private Guid? ResolveBoardId(JsonElement argsElement)
+    {
+        var boardId = GetOptionalGuid(argsElement, "boardId");
+        if (boardId is not null)
+        {
+            return boardId;
+        }
+
+        return _boardService.GetMainBoard()?.Id;
     }
 
     private static Guid? GetRequiredGuid(JsonElement argsElement, string propertyName)
@@ -584,8 +622,7 @@ public class McpController(ITaskService taskService, IBoardService boardService,
             new("get_tasks_by_board", "Get tasks by board", "Возвращает список задач по доске", ParseSchema("""
             {
               "type": "object",
-              "properties": { "boardId": { "type": "string", "format": "uuid" } },
-              "required": [ "boardId" ]
+              "properties": { "boardId": { "type": "string", "format": "uuid" } }
             }
             """), ParseSchema("""
             {
@@ -627,6 +664,17 @@ public class McpController(ITaskService taskService, IBoardService boardService,
               }
             }
             """)),
+            new("get_main_board_id", "Get main board id", "Возвращает id главной доски", ParseSchema("""
+            {
+              "type": "object",
+              "properties": { }
+            }
+            """), ParseSchema("""
+            {
+              "type": "object",
+              "properties": { "boardId": { "type": "string", "format": "uuid" } }
+            }
+            """)),
             new("get_tasks_by_assignee", "Get tasks by assignee", "Возвращает задачи по исполнителю", ParseSchema("""
             {
               "type": "object",
@@ -666,7 +714,7 @@ public class McpController(ITaskService taskService, IBoardService boardService,
                 "assigneeId": { "type": "string", "format": "uuid" },
                 "status": { "type": "integer" }
               },
-              "required": [ "authKey", "boardId", "title" ]
+              "required": [ "authKey", "title" ]
             }
             """), ParseSchema("""
             {
