@@ -34,6 +34,7 @@ builder.Services.AddScoped<IUserRepository, SqliteUserRepository>();
 builder.Services.AddScoped<ICommentRepository, SqliteCommentRepository>();
 
 // Register services
+builder.Services.AddSingleton<ITaskUpdateNotifier, TaskUpdateNotifier>();
 builder.Services.AddScoped<ITaskService, TaskService>();
 builder.Services.AddScoped<IBoardService, BoardService>();
 builder.Services.AddScoped<IAccountService, AccountService>();

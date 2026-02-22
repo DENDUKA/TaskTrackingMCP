@@ -13,7 +13,6 @@
         <div class="card-body p-3 kanban-column" 
              @ondrop="HandleDrop"
              @ondragover:preventDefault="true"
-             @ondragover="HandleDragOver"
              @ondragleave="HandleDragLeave">
             
             @if (Tasks != null && Tasks.Any())
@@ -49,7 +48,6 @@
     [Parameter] public bool ShowAssignee { get; set; } = true;
     [Parameter] public Func<Guid?, string>? GetAssigneeName { get; set; }
     [Parameter] public EventCallback OnDrop { get; set; }
-    [Parameter] public EventCallback<DragEventArgs> OnDragOver { get; set; }
     [Parameter] public EventCallback<DragEventArgs> OnDragLeave { get; set; }
     [Parameter] public EventCallback<TaskItem> OnTaskClick { get; set; }
     [Parameter] public EventCallback<TaskItem> OnTaskEdit { get; set; }
@@ -61,14 +59,6 @@
         if (OnDrop.HasDelegate)
         {
             await OnDrop.InvokeAsync();
-        }
-    }
-
-    private async Task HandleDragOver(DragEventArgs e)
-    {
-        if (OnDragOver.HasDelegate)
-        {
-            await OnDragOver.InvokeAsync(e);
         }
     }
 

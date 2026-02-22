@@ -53,6 +53,21 @@ dotnet run --project TaskTracking.Web
 
 (точные порты могут отличаться)
 
+## Проверка качества
+
+В проекте не зафиксированы отдельные команды lint/typecheck. Рекомендуемые базовые команды:
+
+```bash
+# Сборка (проверка типов и компиляции)
+dotnet build TaskTracking.Web/TaskTracking.Web.csproj
+
+# Форматирование (если установлен dotnet-format)
+dotnet format
+
+# Тесты (если есть тестовые проекты)
+dotnet test
+```
+
 ### База данных
 
 - Используется файл SQLite `tasktracking.db` в каталоге `TaskTracking.Web/`.

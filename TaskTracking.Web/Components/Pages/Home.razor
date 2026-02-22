@@ -5,12 +5,14 @@
 @using TaskTracking.Web.Models
 @using TaskTracking.Web.Components.Shared
 @inject ITaskService TaskService
+@inject ITaskUpdateNotifier TaskUpdateNotifier
 @inject IBoardService BoardService
 @inject IAccountService AccountService
 @inject ICurrentUserService CurrentUserService
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JSRuntime
 @rendermode InteractiveServer
+@implements IDisposable
 
 <PageTitle>Kanban Board</PageTitle>
 
@@ -194,7 +196,6 @@
                           ShowAssignee="true"
                           GetAssigneeName="GetUserName"
                           OnDrop="@( () => HandleDrop(KanbanStatus.Todo) )"
-                          OnDragOver="HandleDragOver"
                           OnTaskClick="OpenViewModal"
                           OnTaskEdit="OpenEditModal"
                           OnTaskDelete="@(task => OpenDeleteModal(task.Id))"
@@ -208,7 +209,6 @@
                           ShowAssignee="true"
                           GetAssigneeName="GetUserName"
                           OnDrop="@( () => HandleDrop(KanbanStatus.InProgress) )"
-                          OnDragOver="HandleDragOver"
                           OnTaskClick="OpenViewModal"
                           OnTaskEdit="OpenEditModal"
                           OnTaskDelete="@(task => OpenDeleteModal(task.Id))"
@@ -222,7 +222,6 @@
                           ShowAssignee="true"
                           GetAssigneeName="GetUserName"
                           OnDrop="@( () => HandleDrop(KanbanStatus.CodeReview) )"
-                          OnDragOver="HandleDragOver"
                           OnTaskClick="OpenViewModal"
                           OnTaskEdit="OpenEditModal"
                           OnTaskDelete="@(task => OpenDeleteModal(task.Id))"
@@ -236,7 +235,6 @@
                           ShowAssignee="true"
                           GetAssigneeName="GetUserName"
                           OnDrop="@( () => HandleDrop(KanbanStatus.Done) )"
-                          OnDragOver="HandleDragOver"
                           OnTaskClick="OpenViewModal"
                           OnTaskEdit="OpenEditModal"
                           OnTaskDelete="@(task => OpenDeleteModal(task.Id))"
@@ -250,7 +248,6 @@
                           ShowAssignee="true"
                           GetAssigneeName="GetUserName"
                           OnDrop="@( () => HandleDrop(KanbanStatus.Accepted) )"
-                          OnDragOver="HandleDragOver"
                           OnTaskClick="OpenViewModal"
                           OnTaskEdit="OpenEditModal"
                           OnTaskDelete="@(task => OpenDeleteModal(task.Id))"
@@ -264,7 +261,6 @@
                           ShowAssignee="true"
                           GetAssigneeName="GetUserName"
                           OnDrop="@( () => HandleDrop(KanbanStatus.Cancelled) )"
-                          OnDragOver="HandleDragOver"
                           OnTaskClick="OpenViewModal"
                           OnTaskEdit="OpenEditModal"
                           OnTaskDelete="@(task => OpenDeleteModal(task.Id))"
@@ -308,6 +304,7 @@
     {
         await LoadBoards();
         await LoadUsers();
+        TaskUpdateNotifier.BoardTasksChanged += HandleBoardTasksChanged;
     }
 
     protected override async Task OnParametersSetAsync()
@@ -360,6 +357,20 @@
     private async Task LoadTasks(Guid boardId)
     {
         Tasks = TaskService.GetTasks(boardId);
+    }
+
+    private void HandleBoardTasksChanged(Guid boardId)
+    {
+        if (CurrentBoard == null || CurrentBoard.Id != boardId)
+        {
+            return;
+        }
+
+        _ = InvokeAsync(async () =>
+        {
+            await LoadTasks(boardId);
+            StateHasChanged();
+        });
     }
 
     private void ShowNotification(string message, NotificationType type)
@@ -534,10 +545,13 @@
     {
         if (draggedTask != null && CurrentBoard != null)
         {
+            var taskId = draggedTask.Id;
+            var boardId = CurrentBoard.Id;
             try
             {
-                TaskService.UpdateTaskStatus(draggedTask.Id, newStatus);
-                await LoadTasks(CurrentBoard.Id);
+                UpdateLocalTaskStatus(taskId, newStatus);
+                StateHasChanged();
+                _ = UpdateTaskStatusInBackground(taskId, newStatus, boardId);
                 ShowNotification($"Задача перемещена в '{GetStatusDisplayName(newStatus)}'", NotificationType.Success);
             }
             catch (Exception ex)
@@ -548,9 +562,39 @@
         }
     }
 
-    private void HandleDragOver(DragEventArgs e)
+    private void UpdateLocalTaskStatus(Guid taskId, KanbanStatus newStatus)
     {
-        // handled by :preventDefault in child component
+        var task = Tasks.FirstOrDefault(t => t.Id == taskId);
+        if (task != null)
+        {
+            task.Status = newStatus;
+        }
+    }
+
+    private void RefreshTasksInBackground(Guid boardId)
+    {
+        _ = InvokeAsync(async () =>
+        {
+            await LoadTasks(boardId);
+            StateHasChanged();
+        });
+    }
+
+    private async Task UpdateTaskStatusInBackground(Guid taskId, KanbanStatus newStatus, Guid boardId)
+    {
+        await Task.Yield();
+        try
+        {
+            TaskService.UpdateTaskStatus(taskId, newStatus);
+            RefreshTasksInBackground(boardId);
+        }
+        catch (Exception ex)
+        {
+            await InvokeAsync(() =>
+            {
+                ShowNotification($"Ошибка при перемещении задачи: {ex.Message}", NotificationType.Error);
+            });
+        }
     }
 
     private TaskItem? draggedTask;
@@ -593,5 +637,10 @@
             KanbanStatus.Cancelled => "Отменено",
             _ => status.ToString()
         };
+    }
+
+    public void Dispose()
+    {
+        TaskUpdateNotifier.BoardTasksChanged -= HandleBoardTasksChanged;
     }
 }
