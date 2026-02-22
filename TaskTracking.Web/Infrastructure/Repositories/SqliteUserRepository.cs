@@ -7,6 +7,7 @@ namespace TaskTracking.Web.Infrastructure.Repositories;
 public class SqliteUserRepository(SqliteConnectionFactory connectionFactory) : IUserRepository
 {
     private readonly SqliteConnectionFactory _connectionFactory = connectionFactory;
+    private const string UserSelectFields = "Id, AuthKey, Name, Email";
     private readonly Lock _cacheLock = new();
     private ConcurrentDictionary<Guid, User>? _usersById;
     private ConcurrentDictionary<Guid, User>? _usersByAuthKey;
@@ -132,7 +133,7 @@ public class SqliteUserRepository(SqliteConnectionFactory connectionFactory) : I
         connection.Open();
 
         var command = connection.CreateCommand();
-        command.CommandText = "SELECT Id, AuthKey, Name, Email FROM Users";
+        command.CommandText = $"SELECT {UserSelectFields} FROM Users";
 
         using var reader = command.ExecuteReader();
         while (reader.Read())

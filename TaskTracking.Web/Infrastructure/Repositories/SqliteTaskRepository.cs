@@ -6,6 +6,7 @@ namespace TaskTracking.Web.Infrastructure.Repositories;
 public class SqliteTaskRepository(SqliteConnectionFactory connectionFactory) : ITaskRepository
 {
     private readonly SqliteConnectionFactory _connectionFactory = connectionFactory;
+    private const string TaskSelectFields = "Id, Title, Description, Status, BoardId, AssigneeId, CreatedAt";
 
     public List<TaskItem> GetAll()
     {
@@ -14,7 +15,7 @@ public class SqliteTaskRepository(SqliteConnectionFactory connectionFactory) : I
         connection.Open();
 
         var command = connection.CreateCommand();
-        command.CommandText = "SELECT Id, Title, Description, Status, BoardId, AssigneeId, CreatedAt FROM Tasks";
+        command.CommandText = $"SELECT {TaskSelectFields} FROM Tasks";
 
         using var reader = command.ExecuteReader();
         while (reader.Read())
@@ -30,7 +31,7 @@ public class SqliteTaskRepository(SqliteConnectionFactory connectionFactory) : I
         connection.Open();
 
         var command = connection.CreateCommand();
-        command.CommandText = "SELECT Id, Title, Description, Status, BoardId, AssigneeId, CreatedAt FROM Tasks WHERE Id = @Id";
+        command.CommandText = $"SELECT {TaskSelectFields} FROM Tasks WHERE Id = @Id";
         command.Parameters.AddWithValue("@Id", id.ToString());
 
         using var reader = command.ExecuteReader();
@@ -48,7 +49,7 @@ public class SqliteTaskRepository(SqliteConnectionFactory connectionFactory) : I
         connection.Open();
 
         var command = connection.CreateCommand();
-        command.CommandText = "SELECT Id, Title, Description, Status, BoardId, AssigneeId, CreatedAt FROM Tasks WHERE BoardId = @BoardId";
+        command.CommandText = $"SELECT {TaskSelectFields} FROM Tasks WHERE BoardId = @BoardId";
         command.Parameters.AddWithValue("@BoardId", boardId.ToString());
 
         using var reader = command.ExecuteReader();

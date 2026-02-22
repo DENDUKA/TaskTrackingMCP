@@ -6,6 +6,7 @@ namespace TaskTracking.Web.Infrastructure.Repositories;
 public class SqliteCommentRepository(SqliteConnectionFactory connectionFactory) : ICommentRepository
 {
     private readonly SqliteConnectionFactory _connectionFactory = connectionFactory;
+    private const string CommentSelectFields = "Id, TaskId, AuthorId, Text, CreatedAt";
 
     public List<Comment> GetByTaskId(Guid taskId)
     {
@@ -14,7 +15,7 @@ public class SqliteCommentRepository(SqliteConnectionFactory connectionFactory) 
         connection.Open();
 
         var command = connection.CreateCommand();
-        command.CommandText = "SELECT Id, TaskId, AuthorId, Text, CreatedAt FROM Comments WHERE TaskId = @TaskId ORDER BY CreatedAt";
+        command.CommandText = $"SELECT {CommentSelectFields} FROM Comments WHERE TaskId = @TaskId ORDER BY CreatedAt";
         command.Parameters.AddWithValue("@TaskId", taskId.ToString());
 
         using var reader = command.ExecuteReader();
@@ -31,7 +32,7 @@ public class SqliteCommentRepository(SqliteConnectionFactory connectionFactory) 
         connection.Open();
 
         var command = connection.CreateCommand();
-        command.CommandText = "SELECT Id, TaskId, AuthorId, Text, CreatedAt FROM Comments WHERE Id = @Id";
+        command.CommandText = $"SELECT {CommentSelectFields} FROM Comments WHERE Id = @Id";
         command.Parameters.AddWithValue("@Id", id.ToString());
 
         using var reader = command.ExecuteReader();

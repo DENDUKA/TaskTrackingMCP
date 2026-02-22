@@ -6,6 +6,7 @@ namespace TaskTracking.Web.Infrastructure.Repositories;
 public class SqliteBoardRepository(SqliteConnectionFactory connectionFactory) : IBoardRepository
 {
     private readonly SqliteConnectionFactory _connectionFactory = connectionFactory;
+    private const string BoardSelectFields = "Id, Name, Description, IsActive, IsMain";
 
     public List<Board> GetAll()
     {
@@ -14,7 +15,7 @@ public class SqliteBoardRepository(SqliteConnectionFactory connectionFactory) : 
         connection.Open();
 
         var command = connection.CreateCommand();
-        command.CommandText = "SELECT Id, Name, Description, IsActive, IsMain FROM Boards";
+        command.CommandText = $"SELECT {BoardSelectFields} FROM Boards";
 
         using var reader = command.ExecuteReader();
         while (reader.Read())
@@ -31,7 +32,7 @@ public class SqliteBoardRepository(SqliteConnectionFactory connectionFactory) : 
         connection.Open();
 
         var command = connection.CreateCommand();
-        command.CommandText = "SELECT Id, Name, Description, IsActive, IsMain FROM Boards WHERE IsActive = 1";
+        command.CommandText = $"SELECT {BoardSelectFields} FROM Boards WHERE IsActive = 1";
 
         using var reader = command.ExecuteReader();
         while (reader.Read())
@@ -47,7 +48,7 @@ public class SqliteBoardRepository(SqliteConnectionFactory connectionFactory) : 
         connection.Open();
 
         var command = connection.CreateCommand();
-        command.CommandText = "SELECT Id, Name, Description, IsActive, IsMain FROM Boards WHERE Id = @Id";
+        command.CommandText = $"SELECT {BoardSelectFields} FROM Boards WHERE Id = @Id";
         command.Parameters.AddWithValue("@Id", id.ToString());
 
         using var reader = command.ExecuteReader();
@@ -64,7 +65,7 @@ public class SqliteBoardRepository(SqliteConnectionFactory connectionFactory) : 
         connection.Open();
 
         var command = connection.CreateCommand();
-        command.CommandText = "SELECT Id, Name, Description, IsActive, IsMain FROM Boards WHERE IsMain = 1 LIMIT 1";
+        command.CommandText = $"SELECT {BoardSelectFields} FROM Boards WHERE IsMain = 1 LIMIT 1";
 
         using var reader = command.ExecuteReader();
         if (reader.Read())
