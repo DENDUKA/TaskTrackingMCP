@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.HttpOverrides;
 using TaskTracking.Web.Application.Abstractions;
 using TaskTracking.Web.Application.Services;
 using TaskTracking.Web.Components;
@@ -14,6 +15,12 @@ builder.Services.AddRazorComponents()
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost;
+    options.KnownIPNetworks.Clear();
+    options.KnownProxies.Clear();
+});
 
 // Register SQLite connection factory
 var connectionFactory = new SqliteConnectionFactory("Data Source=tasktracking.db");
@@ -34,16 +41,13 @@ builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 
 var app = builder.Build();
 
-var pathBase = app.Configuration["PathBase"] ?? "";
-app.Use((context, next) =>
+app.UseForwardedHeaders();
+
+var pathBase = app.Configuration["PathBase"];
+if (!string.IsNullOrWhiteSpace(pathBase))
 {
-    if (context.Request.Path.StartsWithSegments(pathBase, out var remaining))
-    {
-        context.Request.PathBase = pathBase;
-        context.Request.Path = remaining;
-    }
-    return next();
-});
+    app.UsePathBase(pathBase);
+}
 
 // Configure the HTTP request pipeline.
 //if (app.Environment.IsDevelopment())
