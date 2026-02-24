@@ -15,7 +15,7 @@ builder.Services.AddRazorComponents()
 builder.Services.AddControllers();
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
-    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost;
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost | ForwardedHeaders.XForwardedPrefix;
     options.KnownIPNetworks.Clear();
     options.KnownProxies.Clear();
 });
@@ -47,6 +47,29 @@ if (!string.IsNullOrWhiteSpace(pathBase))
 {
     app.UsePathBase(pathBase);
 }
+
+app.Use((context, next) =>
+{
+    if (context.Request.Headers.TryGetValue("X-Forwarded-Prefix", out var prefixHeader))
+    {
+        var prefixValue = prefixHeader.ToString();
+        var forwardedBase = PathString.FromUriComponent(prefixValue);
+        if (forwardedBase.HasValue)
+        {
+            if (context.Request.Path.StartsWithSegments(forwardedBase, out var remaining))
+            {
+                context.Request.PathBase = forwardedBase;
+                context.Request.Path = remaining;
+            }
+            else
+            {
+                context.Request.PathBase = forwardedBase;
+            }
+        }
+    }
+
+    return next();
+});
 
 // Configure the HTTP request pipeline.
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
